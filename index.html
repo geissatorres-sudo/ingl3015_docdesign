@@ -4435,15 +4435,31 @@ function setupCel(el, stageId) {
     const sl=parseFloat(el.style.left)||0;
     const st2=parseFloat(el.style.top)||0;
     function onMove(me){
-      el.style.left=Math.max(0,sl+me.clientX-sx)+'px';
-      el.style.top =Math.max(0,st2+me.clientY-sy)+'px';
+      const newLeft = Math.max(0,sl+me.clientX-sx);
+      const newTop  = Math.max(0,st2+me.clientY-sy);
+      el.style.left = newLeft+'px';
+      el.style.top  = newTop+'px';
       const stg=el.closest('.design-stage');
       if(stg&&el.dataset.id){
+        // Move depth shadow
         const sh=stg.querySelector('.cel-depth-shadow[data-for="'+el.dataset.id+'"]');
         if(sh){
-          sh.style.left=(Math.max(0,sl+me.clientX-sx)+(parseFloat(sh.dataset.offX)||0))+'px';
-          sh.style.top =(Math.max(0,st2+me.clientY-sy)+(parseFloat(sh.dataset.offY)||0))+'px';
+          sh.style.left=(newLeft+(parseFloat(sh.dataset.offX)||0))+'px';
+          sh.style.top =(newTop +(parseFloat(sh.dataset.offY)||0))+'px';
         }
+        // Move reflection (stays directly below the element)
+        const rf=stg.querySelector('#reflect_'+el.dataset.id);
+        if(rf){
+          const elH = el.offsetHeight || 60;
+          rf.style.left = newLeft+'px';
+          rf.style.top  = (newTop + elH + 4)+'px';
+        }
+        // Move two-div glow/shadow effects (match element position)
+        stg.querySelectorAll('.cel-pp-effect[data-for="'+el.dataset.id+'"]').forEach(eff=>{
+          if(eff.id && eff.id.startsWith('reflect_')) return; // handled above
+          eff.style.left = (newLeft + (parseFloat(eff.dataset.offX)||0))+'px';
+          eff.style.top  = (newTop  + (parseFloat(eff.dataset.offY)||0))+'px';
+        });
       }
     }
     function onUp(){
