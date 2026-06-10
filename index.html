@@ -7123,9 +7123,17 @@ function ppEffect(effect){
     const clone=el.cloneNode(true);
     clone.id='reflect_'+el.dataset.id;
     clone.className='cel-pp-effect'; clone.dataset.for=el.dataset.id;
-    clone.style.transform=(el.style.transform||'')+' scaleY(-1)';
-    clone.style.opacity='0.35'; clone.style.pointerEvents='none';
-    clone.style.top=(parseFloat(el.style.top||0)+(el.offsetHeight||60)+2)+'px';
+    // Remove resize handles from clone
+    clone.querySelectorAll('.res-handle').forEach(h=>h.remove());
+    // Position directly below the element using its actual rendered height
+    const elH = el.getBoundingClientRect().height || el.offsetHeight || 60;
+    const elTop = parseFloat(el.style.top)||0;
+    clone.style.left = el.style.left;
+    clone.style.top  = (elTop + elH + 4) + 'px';
+    clone.style.width  = el.style.width;
+    clone.style.height = el.style.height;
+    clone.style.transform = 'scaleY(-1)';
+    clone.style.opacity='0.3'; clone.style.pointerEvents='none';
     clone.style.webkitMask='linear-gradient(to bottom,black 0%,transparent 70%)';
     clone.style.mask=clone.style.webkitMask;
     stage.appendChild(clone);
@@ -7474,6 +7482,88 @@ function doTextArt(stageId, style){
 
 // _activeStage is set inside selectCel directly
 
+
+// ── Serialize one canvas to a plain object ──────────────────────────
+function serializeCanvas(stageId){
+  const stage = document.getElementById(stageId);
+  if(!stage) return [];
+  return Array.from(stage.querySelectorAll('.cel')).map(el => {
+    const obj = {
+      type:        el.dataset.type || 'shape',
+      id:          el.dataset.id   || '',
+      activeShape: el.dataset.activeShape || '',
+      rotation:    el.dataset.rotation   || '0',
+      flipX:       el.dataset.flipX      || '1',
+      flipY:       el.dataset.flipY      || '1',
+      lineEl:      el.dataset.lineEl     || '',
+      styles: {
+        left:el.style.left,top:el.style.top,
+        width:el.style.width,height:el.style.height,
+        background:el.style.background,color:el.style.color,
+        fontSize:el.style.fontSize,fontFamily:el.style.fontFamily,
+        fontWeight:el.style.fontWeight,fontStyle:el.style.fontStyle,
+        textAlign:el.style.textAlign,textDecoration:el.style.textDecoration,
+        textShadow:el.style.textShadow,letterSpacing:el.style.letterSpacing,
+        lineHeight:el.style.lineHeight,writingMode:el.style.writingMode,
+        borderRadius:el.style.borderRadius,border:el.style.border,
+        clipPath:el.style.clipPath,opacity:el.style.opacity,
+        transform:el.style.transform,boxShadow:el.style.boxShadow,
+        filter:el.style.filter,padding:el.style.padding,
+        zIndex:el.style.zIndex,minHeight:el.style.minHeight,
+        webkitTextStroke:el.style.webkitTextStroke,
+      }
+    };
+    if(el.dataset.type==='text'){
+      obj.html = el.innerHTML || '';
+    } else if(el.dataset.type==='image'){
+      const img = el.querySelector('img');
+      if(img){
+        obj.imgSrc = (img.src.startsWith('data:') && img.src.length > 200000)
+          ? '__large__' : img.src;
+      }
+    }
+    return obj;
+  });
+}
+
+// ── Restore one canvas from saved data ──────────────────────────────
+function restoreCanvas(stageId, elements){
+  if(!elements || !elements.length) return;
+  const stage = document.getElementById(stageId);
+  if(!stage) return;
+  stage.querySelectorAll('.cel').forEach(e=>e.remove());
+  stage.querySelectorAll('.cel-depth-shadow').forEach(e=>e.remove());
+  stage.querySelectorAll('.cel-pp-effect').forEach(e=>e.remove());
+  const st = getState(stageId);
+  elements.forEach(data => {
+    const el = document.createElement('div');
+    el.className = 'cel cel-' + (data.type||'shape');
+    el.dataset.type        = data.type || 'shape';
+    el.dataset.id          = data.id   || ('cel_' + Math.random().toString(36).slice(2,7));
+    el.dataset.activeShape = data.activeShape || '';
+    el.dataset.rotation    = data.rotation    || '0';
+    el.dataset.flipX       = data.flipX       || '1';
+    el.dataset.flipY       = data.flipY       || '1';
+    if(data.lineEl) el.dataset.lineEl = data.lineEl;
+    const s = data.styles || {};
+    Object.keys(s).forEach(prop => { if(s[prop]) el.style[prop] = s[prop]; });
+    if(data.type==='text' && data.html !== undefined){
+      el.innerHTML = data.html;
+    } else if(data.type==='image' && data.imgSrc && data.imgSrc !== '__large__'){
+      const img = document.createElement('img');
+      img.src = data.imgSrc;
+      img.style.cssText = 'width:100%;height:100%;object-fit:cover;display:block;pointer-events:none;';
+      el.appendChild(img);
+    } else if(data.imgSrc === '__large__'){
+      el.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100%;color:#999;font-size:.72rem;text-align:center;padding:.3rem;">📷 Re-upload image</div>';
+    }
+    setupCel(el, stageId);
+    addResizeHandles(el);
+    stage.appendChild(el);
+    const n = parseInt((data.id||'').replace('cel_',''))||0;
+    if(st && n >= st.nextId) st.nextId = n + 1;
+  });
+}
 // ════════════════════════════════════════════════════════════════════
 //  FIREBASE CLOUD SAVE  — uses Firestore REST API (no SDK required)
 // ════════════════════════════════════════════════════════════════════
