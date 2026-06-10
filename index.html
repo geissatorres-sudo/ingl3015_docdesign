@@ -675,6 +675,11 @@ input[type=color].fb-clr{
 .fb-txt-row,
 .img-shape-row { display:none !important; }
 
+/* Effect divs (shadows, glow two-div, reflection) */
+.cel-pp-effect{
+  position:absolute;pointer-events:none;box-sizing:border-box;
+}
+
 /* Click-to-edit hint on empty canvas */
 .design-stage::after{
   content: 'Click any element to edit it → Properties Panel opens on the right';
@@ -7144,11 +7149,13 @@ function ppEffect(effect){
     // Position directly below the element using its actual rendered height
     const elH = el.getBoundingClientRect().height || el.offsetHeight || 60;
     const elTop = parseFloat(el.style.top)||0;
-    clone.style.left = el.style.left;
-    clone.style.top  = (elTop + elH + 4) + 'px';
+    clone.style.position = 'absolute'; // .cel class lost on clone
+    clone.style.left   = el.style.left;
+    clone.style.top    = (elTop + elH + 4) + 'px';
     clone.style.width  = el.style.width;
     clone.style.height = el.style.height;
-    clone.style.transform = 'scaleY(-1)';
+    clone.style.transform        = 'scaleY(-1)';
+    clone.style.transformOrigin  = 'center top';
     clone.style.opacity='0.3'; clone.style.pointerEvents='none';
     clone.style.webkitMask='linear-gradient(to bottom,black 0%,transparent 70%)';
     clone.style.mask=clone.style.webkitMask;
