@@ -1399,16 +1399,7 @@ input[type=color].fb-clr{
               <button class="sp-btn" onclick="spAddShape('coverStage','arch')" title="Arch (rounded top)">⌢</button>
             </div>
           </div>
-          <span class="ctb-sep"></span>
-          <button class="ctb" onclick="triggerImgUpload('coverStage','coverStageImgIn')">+ Image</button>
-          <input type="file" id="coverStageImgIn" accept="image/*" style="display:none;" onchange="handleImgUpload(event,'coverStage')">
-          <span class="ctb-sep"></span>
-          <button class="ctb" id="coverGrid" onclick="toggleGrid('coverStage')">Grid</button>
-          <button class="ctb" onclick="setOrientation('coverStage','portrait')" title="Portrait">🖹</button>
-          <button class="ctb" onclick="setOrientation('coverStage','landscape')" title="Landscape">🖺</button>
-          <button class="ctb" onclick="enlargeCanvas('coverStage')" title="Fullscreen">⛶ Fullscreen</button>
-          <button class="ctb" onclick="deleteSelected('coverStage')" title="Delete selected">Del Selected</button>
-          <button class="ctb" onclick="clearCanvas('coverStage')" style="background:#7b2020;color:#fff;">Clear All</button>
+          
           
           
           
@@ -1797,16 +1788,7 @@ input[type=color].fb-clr{
               <button class="sp-btn" onclick="spAddShape('infoStage','arch')" title="Arch (rounded top)">⌢</button>
             </div>
           </div>
-          <span class="ctb-sep"></span>
-          <button class="ctb" onclick="triggerImgUpload('infoStage','infoStageImgIn')">+ Image</button>
-          <input type="file" id="infoStageImgIn" accept="image/*" style="display:none;" onchange="handleImgUpload(event,'infoStage')">
-          <span class="ctb-sep"></span>
-          <button class="ctb" id="infoGrid" onclick="toggleGrid('infoStage')">Grid</button>
-          <button class="ctb" onclick="setOrientation('infoStage','portrait')" title="Portrait">🖹</button>
-          <button class="ctb" onclick="setOrientation('infoStage','landscape')" title="Landscape">🖺</button>
-          <button class="ctb" onclick="enlargeCanvas('infoStage')" title="Fullscreen">⛶ Fullscreen</button>
-          <button class="ctb" onclick="deleteSelected('infoStage')" title="Delete selected">Del Selected</button>
-          <button class="ctb" onclick="clearCanvas('infoStage')" style="background:#7b2020;color:#fff;">Clear All</button>
+          
           
           
           
@@ -1833,6 +1815,17 @@ input[type=color].fb-clr{
             <option value="gold-grad">Gold Gradient</option>
             <option value="polaroid">Polaroid</option>
           </select>
+        
+          <span class="ctb-sep"></span>
+          <button class="ctb" onclick="triggerImgUpload('infoStage','infoStageImgIn')">+ Image</button>
+          <input type="file" id="infoStageImgIn" accept="image/*" style="display:none;" onchange="handleImgUpload(event,'infoStage')">
+          <span class="ctb-sep"></span>
+          <button class="ctb" id="infoGrid" onclick="toggleGrid('infoStage')">Grid</button>
+          <button class="ctb" onclick="setOrientation('infoStage','portrait')" title="Portrait">🖹</button>
+          <button class="ctb" onclick="setOrientation('infoStage','landscape')" title="Landscape">🖺</button>
+          <button class="ctb" onclick="enlargeCanvas('infoStage')" title="Fullscreen">⛶ Fullscreen</button>
+          <button class="ctb" onclick="deleteSelected('infoStage')" title="Delete selected">Del Selected</button>
+          <button class="ctb" onclick="clearCanvas('infoStage')" style="background:#7b2020;color:#fff;">Clear All</button>
         </div>
         <div class="design-stage" id="infoStage" style="min-height:700px;transition:min-height .3s;"
           onclick="stageClick(event,'infoStage')" oncontextmenu="stageCtx(event,'infoStage')">
@@ -2134,16 +2127,7 @@ input[type=color].fb-clr{
               <button class="sp-btn" onclick="spAddShape('nlStage','arch')" title="Arch (rounded top)">⌢</button>
             </div>
           </div>
-          <span class="ctb-sep"></span>
-          <button class="ctb" onclick="triggerImgUpload('nlStage','nlStageImgIn')">+ Image</button>
-          <input type="file" id="nlStageImgIn" accept="image/*" style="display:none;" onchange="handleImgUpload(event,'nlStage')">
-          <span class="ctb-sep"></span>
-          <button class="ctb" id="nlGrid" onclick="toggleGrid('nlStage')">Grid</button>
-          <button class="ctb" onclick="setOrientation('nlStage','portrait')" title="Portrait">🖹</button>
-          <button class="ctb" onclick="setOrientation('nlStage','landscape')" title="Landscape">🖺</button>
-          <button class="ctb" onclick="enlargeCanvas('nlStage')" title="Fullscreen">⛶ Fullscreen</button>
-          <button class="ctb" onclick="deleteSelected('nlStage')" title="Delete selected">Del Selected</button>
-          <button class="ctb" onclick="clearCanvas('nlStage')" style="background:#7b2020;color:#fff;">Clear All</button>
+          
           
           
           
@@ -2617,16 +2601,7 @@ input[type=color].fb-clr{
               <button class="sp-btn" onclick="spAddShape('posterStage','arch')" title="Arch (rounded top)">⌢</button>
             </div>
           </div>
-          <span class="ctb-sep"></span>
-          <button class="ctb" onclick="triggerImgUpload('posterStage','posterStageImgIn')">+ Image</button>
-          <input type="file" id="posterStageImgIn" accept="image/*" style="display:none;" onchange="handleImgUpload(event,'posterStage')">
-          <span class="ctb-sep"></span>
-          <button class="ctb" id="posterGrid" onclick="toggleGrid('posterStage')">Grid</button>
-          <button class="ctb" onclick="setOrientation('posterStage','portrait')" title="Portrait">🖹</button>
-          <button class="ctb" onclick="setOrientation('posterStage','landscape')" title="Landscape">🖺</button>
-          <button class="ctb" onclick="enlargeCanvas('posterStage')" title="Fullscreen">⛶ Fullscreen</button>
-          <button class="ctb" onclick="deleteSelected('posterStage')" title="Delete selected">Del Selected</button>
-          <button class="ctb" onclick="clearCanvas('posterStage')" style="background:#7b2020;color:#fff;">Clear All</button>
+          
           
           
           
@@ -2653,6 +2628,17 @@ input[type=color].fb-clr{
             <option value="gold-grad">Gold Gradient</option>
             <option value="polaroid">Polaroid</option>
           </select>
+        
+          <span class="ctb-sep"></span>
+          <button class="ctb" onclick="triggerImgUpload('posterStage','posterStageImgIn')">+ Image</button>
+          <input type="file" id="posterStageImgIn" accept="image/*" style="display:none;" onchange="handleImgUpload(event,'posterStage')">
+          <span class="ctb-sep"></span>
+          <button class="ctb" id="posterGrid" onclick="toggleGrid('posterStage')">Grid</button>
+          <button class="ctb" onclick="setOrientation('posterStage','portrait')" title="Portrait">🖹</button>
+          <button class="ctb" onclick="setOrientation('posterStage','landscape')" title="Landscape">🖺</button>
+          <button class="ctb" onclick="enlargeCanvas('posterStage')" title="Fullscreen">⛶ Fullscreen</button>
+          <button class="ctb" onclick="deleteSelected('posterStage')" title="Delete selected">Del Selected</button>
+          <button class="ctb" onclick="clearCanvas('posterStage')" style="background:#7b2020;color:#fff;">Clear All</button>
         </div>
         <div class="design-stage" id="posterStage" style="min-height:640px;"
           onclick="stageClick(event,'posterStage')" oncontextmenu="stageCtx(event,'posterStage')">
@@ -6420,6 +6406,8 @@ function startProject(){
 }
 
 function goEx(n, btn){
+  // Save before switching tabs (captures any canvas work)
+  setTimeout(cloudSave, 800);
   document.querySelectorAll('.ex-panel').forEach(p => p.classList.remove('active'));
   document.querySelectorAll('.ex-btn').forEach(b => b.classList.remove('active'));
   if(n === 'instructions'){
@@ -6588,43 +6576,61 @@ function applyShapeEffect(e, effect){
 // BACKGROUND REMOVAL (tolerance-based)
 // ══════════════════════════════════════════════
 function removeBgFromSelected(stageId){
-  const st = getState(stageId);
-  if(!st||!st.selected) return;
-  const el = st.selected;
+  const el = _ppActiveEl || getState(stageId)?.selected;
+  if(!el){ alert('Select an image element first.'); return; }
   const img = el.querySelector('img');
   if(!img){ alert('Select an image element first.'); return; }
 
-  const tolerance = parseInt(prompt('Background removal tolerance (0-80, default 30):', '30')) || 30;
-  const canvas2 = document.createElement('canvas');
-  const ctx = canvas2.getContext('2d');
-  // Draw image to canvas
-  const tmpImg = new Image();
-  tmpImg.crossOrigin = 'anonymous';
-  tmpImg.onload = function(){
-    canvas2.width  = tmpImg.naturalWidth  || tmpImg.width;
-    canvas2.height = tmpImg.naturalHeight || tmpImg.height;
-    ctx.drawImage(tmpImg, 0, 0);
-    // Sample corner pixels to determine background color
-    const corners = [[0,0],[canvas2.width-1,0],[0,canvas2.height-1],[canvas2.width-1,canvas2.height-1]];
-    let avgR=0, avgG=0, avgB=0;
-    corners.forEach(([x,y])=>{
-      const p = ctx.getImageData(x,y,1,1).data;
-      avgR+=p[0]; avgG+=p[1]; avgB+=p[2];
-    });
-    avgR/=4; avgG/=4; avgB/=4;
-    // Remove pixels close to background color
-    const imageData = ctx.getImageData(0,0,canvas2.width,canvas2.height);
-    const data = imageData.data;
-    for(let i=0;i<data.length;i+=4){
-      const dr=Math.abs(data[i]-avgR), dg=Math.abs(data[i+1]-avgG), db=Math.abs(data[i+2]-avgB);
-      if(dr+dg+db < tolerance*3) data[i+3]=0; // make transparent
+  const tolerance = parseInt(prompt(
+    'Background removal sensitivity (10=precise, 50=aggressive, default 30):\n' +
+    'Tip: Start with 30. If too much is removed, undo and try 15.', '30'
+  ));
+  if(isNaN(tolerance)) return;
+
+  const cvs = document.createElement('canvas');
+  const ctx = cvs.getContext('2d');
+  const tmp = new Image();
+  tmp.crossOrigin = 'anonymous';
+  tmp.onload = function(){
+    cvs.width = tmp.naturalWidth || 400;
+    cvs.height = tmp.naturalHeight || 300;
+    ctx.drawImage(tmp, 0, 0);
+    try{
+      const data = ctx.getImageData(0, 0, cvs.width, cvs.height);
+      const d = data.data;
+      const W = cvs.width, H = cvs.height;
+
+      // Sample background color from all 4 corners
+      const bgColors = [
+        [d[0],d[1],d[2]],
+        [d[(W-1)*4],d[(W-1)*4+1],d[(W-1)*4+2]],
+        [d[(H-1)*W*4],d[(H-1)*W*4+1],d[(H-1)*W*4+2]],
+        [d[((H-1)*W+(W-1))*4],d[((H-1)*W+(W-1))*4+1],d[((H-1)*W+(W-1))*4+2]]
+      ];
+      // Average the corner colors for a better bg estimate
+      const bgR = Math.round(bgColors.reduce((s,c2)=>s+c2[0],0)/4);
+      const bgG = Math.round(bgColors.reduce((s,c2)=>s+c2[1],0)/4);
+      const bgB = Math.round(bgColors.reduce((s,c2)=>s+c2[2],0)/4);
+
+      // Remove pixels that are close to the background color
+      for(let i=0; i<d.length; i+=4){
+        const dr=d[i]-bgR, dg=d[i+1]-bgG, db=d[i+2]-bgB;
+        const dist = Math.sqrt(dr*dr+dg*dg+db*db);
+        if(dist < tolerance * 2.2){
+          // Fade edge pixels for softer result
+          const alpha = Math.min(255, Math.round((dist/(tolerance*2.2))*255));
+          d[i+3] = Math.min(d[i+3], alpha);
+        }
+      }
+      ctx.putImageData(data, 0, 0);
+      img.src = cvs.toDataURL('image/png');
+      el.style.background = 'transparent';
+    } catch(e){
+      alert('Could not process image.\nNote: Images from external URLs cannot be processed due to browser security. Upload the image directly instead.');
     }
-    ctx.putImageData(imageData,0,0);
-    img.src = canvas2.toDataURL('image/png');
-    el.style.background = 'transparent';
   };
-  tmpImg.onerror = ()=>alert('Could not process this image (CORS restriction). Try re-uploading the image.');
-  tmpImg.src = img.src;
+  tmp.onerror = ()=>alert('Could not load image for processing.');
+  tmp.src = img.src;
 }
 
 function adjustImageContrast(stageId){
@@ -7611,41 +7617,47 @@ function serializeCanvas(stageId){
 
 // ── Restore one canvas from saved data ──────────────────────────────
 function restoreCanvas(stageId, elements){
-  if(!elements || !elements.length) return;
-  const stage = document.getElementById(stageId);
+  if(!elements||!elements.length) return;
+  const stage=document.getElementById(stageId);
   if(!stage) return;
-  stage.querySelectorAll('.cel').forEach(e=>e.remove());
-  stage.querySelectorAll('.cel-depth-shadow').forEach(e=>e.remove());
-  stage.querySelectorAll('.cel-pp-effect').forEach(e=>e.remove());
-  const st = getState(stageId);
-  elements.forEach(data => {
-    const el = document.createElement('div');
-    el.className = 'cel cel-' + (data.type||'shape');
-    el.dataset.type        = data.type || 'shape';
-    el.dataset.id          = data.id   || ('cel_' + Math.random().toString(36).slice(2,7));
-    el.dataset.activeShape = data.activeShape || '';
-    el.dataset.rotation    = data.rotation    || '0';
-    el.dataset.flipX       = data.flipX       || '1';
-    el.dataset.flipY       = data.flipY       || '1';
-    if(data.lineEl) el.dataset.lineEl = data.lineEl;
-    const s = data.styles || {};
-    Object.keys(s).forEach(prop => { if(s[prop]) el.style[prop] = s[prop]; });
-    if(data.type==='text' && data.html !== undefined){
-      el.innerHTML = data.html;
-    } else if(data.type==='image' && data.imgSrc && data.imgSrc !== '__large__'){
-      const img = document.createElement('img');
-      img.src = data.imgSrc;
-      img.style.cssText = 'width:100%;height:100%;object-fit:cover;display:block;pointer-events:none;';
-      el.appendChild(img);
-    } else if(data.imgSrc === '__large__'){
-      el.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100%;color:#999;font-size:.72rem;text-align:center;padding:.3rem;">📷 Re-upload image</div>';
+  // Clear existing elements first
+  stage.querySelectorAll('.cel,.cel-depth-shadow,.cel-pp-effect').forEach(e=>e.remove());
+  const st=getState(stageId);
+
+  elements.forEach(data=>{
+    const el=document.createElement('div');
+    el.className='cel cel-'+(data.type||'shape');
+    el.dataset.type        = data.type||'shape';
+    el.dataset.id          = data.id||('cel_'+Math.random().toString(36).slice(2,7));
+    el.dataset.activeShape = data.activeShape||'';
+    el.dataset.rotation    = data.rotation||'0';
+    el.dataset.flipX       = data.flipX||'1';
+    el.dataset.flipY       = data.flipY||'1';
+    // Apply all saved styles
+    const s=data.styles||{};
+    Object.keys(s).forEach(prop=>{ if(s[prop]) el.style[prop]=s[prop]; });
+    // Restore content
+    if(data.type==='text'&&data.html!==undefined){
+      el.innerHTML=data.html;
+    } else if(data.type==='image'){
+      if(data.imgSrc&&data.imgSrc!=='__large__'){
+        const img=document.createElement('img');
+        img.src=data.imgSrc;
+        img.style.cssText='width:100%;height:100%;object-fit:cover;display:block;pointer-events:none;';
+        el.appendChild(img);
+      } else {
+        el.innerHTML='<div style="display:flex;align-items:center;justify-content:center;height:100%;color:#999;font-size:.72rem;text-align:center;">📷 Re-upload image</div>';
+      }
+    } else if(data.shapeText){
+      el.textContent=data.shapeText;
     }
-    setupCel(el, stageId);
+    setupCel(el,stageId);
     addResizeHandles(el);
     stage.appendChild(el);
-    const n = parseInt((data.id||'').replace('cel_',''))||0;
-    if(st && n >= st.nextId) st.nextId = n + 1;
+    const n=parseInt((data.id||'').replace(/\D/g,''))||0;
+    if(st&&n>=st.nextId) st.nextId=n+1;
   });
+  console.log(`Restored ${elements.length} elements to ${stageId}`);
 }
 // ════════════════════════════════════════════════════════════════════
 //  FIREBASE CLOUD SAVE  — uses Firestore REST API (no SDK required)
@@ -7673,74 +7685,99 @@ async function cloudSave(){
   }
   setCloudStatus('saving','☁️ Saving...');
   try{
-    // Serialize canvases — skip huge images to stay under Firestore 1MB limit
     const canvases = {};
+    let totalEls = 0;
     ['flyerStage','coverStage','infoStage','nlStage','posterStage'].forEach(id=>{
-      canvases[id] = serializeCanvas(id);
+      const stage = document.getElementById(id);
+      const els = stage ? Array.from(stage.querySelectorAll('.cel')) : [];
+      totalEls += els.length;
+      canvases[id] = els.map(el => {
+        const obj = {
+          type:        el.dataset.type || 'shape',
+          id:          el.dataset.id   || '',
+          activeShape: el.dataset.activeShape || '',
+          rotation:    el.dataset.rotation    || '0',
+          flipX:       el.dataset.flipX       || '1',
+          flipY:       el.dataset.flipY       || '1',
+          styles:{
+            left:el.style.left, top:el.style.top,
+            width:el.style.width, height:el.style.height,
+            background:el.style.background, color:el.style.color,
+            fontSize:el.style.fontSize, fontFamily:el.style.fontFamily,
+            fontWeight:el.style.fontWeight, fontStyle:el.style.fontStyle,
+            textAlign:el.style.textAlign, textDecoration:el.style.textDecoration,
+            textShadow:el.style.textShadow, letterSpacing:el.style.letterSpacing,
+            lineHeight:el.style.lineHeight, writingMode:el.style.writingMode,
+            borderRadius:el.style.borderRadius, border:el.style.border,
+            clipPath:el.style.clipPath, opacity:el.style.opacity,
+            transform:el.style.transform, boxShadow:el.style.boxShadow,
+            filter:el.style.filter, padding:el.style.padding,
+            zIndex:el.style.zIndex, minHeight:el.style.minHeight,
+            webkitTextStroke:el.style.webkitTextStroke||'',
+            display:el.style.display, alignItems:el.style.alignItems,
+            justifyContent:el.style.justifyContent,
+          }
+        };
+        if(el.dataset.type==='text'){
+          obj.html = el.innerHTML||'';
+        } else if(el.dataset.type==='image'){
+          const img=el.querySelector('img');
+          if(img) obj.imgSrc=(img.src.startsWith('data:')&&img.src.length>200000)?'__large__':img.src;
+        } else {
+          // Shape: save text content if user typed on it
+          if(el.textContent.trim()) obj.shapeText = el.textContent;
+        }
+        return obj;
+      });
     });
-    const reflections = {
-      flyer:  document.getElementById('flyerRef')?.value||'',
-      cover:  document.getElementById('coverRef')?.value||'',
-      info:   document.getElementById('infoRef')?.value||'',
-      nl:     document.getElementById('nlRef')?.value||'',
-      poster: document.getElementById('posterRef')?.value||'',
-    };
+
+    console.log(`Saving ${totalEls} canvas elements for key: ${key}`);
+
     const saveData = {
       studentName:    nm,
       studentSection: document.getElementById('iSec')?.value||'',
       studentId:      sid,
       selectedEx:     selectedExercises||[],
-      reflections,
+      reflections:{
+        flyer:  document.getElementById('flyerRef')?.value||'',
+        cover:  document.getElementById('coverRef')?.value||'',
+        info:   document.getElementById('infoRef')?.value||'',
+        nl:     document.getElementById('nlRef')?.value||'',
+        poster: document.getElementById('posterRef')?.value||'',
+      },
       canvases,
       ts: new Date().toISOString(),
     };
 
     let payload = JSON.stringify(saveData);
 
-    // If payload > 900KB, remove canvas image data (keep shapes/text/styles)
+    // Strip large images if over 900KB
     if(payload.length > 900000){
-      console.warn('Payload too large ('+Math.round(payload.length/1024)+'KB), removing images...');
-      Object.keys(saveData.canvases).forEach(stageId=>{
-        saveData.canvases[stageId] = (saveData.canvases[stageId]||[]).map(el=>{
-          if(el.imgSrc) el.imgSrc = '__large__'; // strip image data
-          return el;
+      Object.keys(saveData.canvases).forEach(sid2=>{
+        saveData.canvases[sid2]=(saveData.canvases[sid2]||[]).map(el=>{
+          if(el.imgSrc) el.imgSrc='__large__'; return el;
         });
       });
       payload = JSON.stringify(saveData);
     }
 
-    // If still too large, skip canvases entirely and just save text fields
-    if(payload.length > 900000){
-      console.warn('Still too large, saving text only...');
-      saveData.canvases = {};
-      payload = JSON.stringify(saveData);
-    }
-
-    console.log('Saving '+Math.round(payload.length/1024)+'KB to key:', key);
-
     const url = `${_FB_BASE}/${encodeURIComponent(key)}?key=${_FB_API_KEY}`;
-    const res = await fetch(url, {
-      method:  'PATCH',
-      headers: {'Content-Type':'application/json'},
-      body:    JSON.stringify({ fields:{ data:{ stringValue: payload } } })
+    const res = await fetch(url,{
+      method:'PATCH',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({fields:{data:{stringValue:payload}}})
     });
-
     if(!res.ok){
-      const errText = await res.text();
-      let errMsg = `HTTP ${res.status}`;
-      if(res.status===403) errMsg = '403 — Check Firestore Rules';
-      if(res.status===400) errMsg = '400 — Bad data format';
-      if(res.status===413) errMsg = '413 — Data too large';
-      throw new Error(errMsg + ': ' + errText.slice(0,100));
+      const t=await res.text();
+      let msg=`HTTP ${res.status}`;
+      if(res.status===403) msg='403 — Fix Firestore Rules';
+      throw new Error(msg+': '+t.slice(0,80));
     }
-
-    setCloudStatus('saved','☁️ Saved ✓');
-    setTimeout(()=>setCloudStatus('','☁️ Auto-saved'),3000);
-    console.log('Cloud save successful ✓');
-
+    setCloudStatus('saved',`☁️ Saved ✓ (${totalEls} elements)`);
+    setTimeout(()=>setCloudStatus('','☁️ Auto-saved'),4000);
   } catch(e){
-    console.error('Cloud save error:', e);
-    setCloudStatus('error','⚠️ '+e.message.slice(0,40));
+    console.error('Cloud save error:',e);
+    setCloudStatus('error','⚠️ '+e.message.slice(0,45));
   }
 }
 
