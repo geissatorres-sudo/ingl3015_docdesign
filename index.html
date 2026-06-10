@@ -1399,6 +1399,16 @@ input[type=color].fb-clr{
               <button class="sp-btn" onclick="spAddShape('coverStage','arch')" title="Arch (rounded top)">⌢</button>
             </div>
           </div>
+          <span class="ctb-sep"></span>
+          <button class="ctb" onclick="triggerImgUpload('coverStage','coverStageImgIn')">+ Image</button>
+          <input type="file" id="coverStageImgIn" accept="image/*" style="display:none;" onchange="handleImgUpload(event,'coverStage')">
+          <span class="ctb-sep"></span>
+          <button class="ctb" id="coverGrid" onclick="toggleGrid('coverStage')">Grid</button>
+          <button class="ctb" onclick="setOrientation('coverStage','portrait')" title="Portrait">🖹</button>
+          <button class="ctb" onclick="setOrientation('coverStage','landscape')" title="Landscape">🖺</button>
+          <button class="ctb" onclick="enlargeCanvas('coverStage')" title="Fullscreen">⛶ Fullscreen</button>
+          <button class="ctb" onclick="deleteSelected('coverStage')" title="Delete selected">Del Selected</button>
+          <button class="ctb" onclick="clearCanvas('coverStage')" style="background:#7b2020;color:#fff;">Clear All</button>
           
           
           
@@ -1787,6 +1797,16 @@ input[type=color].fb-clr{
               <button class="sp-btn" onclick="spAddShape('infoStage','arch')" title="Arch (rounded top)">⌢</button>
             </div>
           </div>
+          <span class="ctb-sep"></span>
+          <button class="ctb" onclick="triggerImgUpload('infoStage','infoStageImgIn')">+ Image</button>
+          <input type="file" id="infoStageImgIn" accept="image/*" style="display:none;" onchange="handleImgUpload(event,'infoStage')">
+          <span class="ctb-sep"></span>
+          <button class="ctb" id="infoGrid" onclick="toggleGrid('infoStage')">Grid</button>
+          <button class="ctb" onclick="setOrientation('infoStage','portrait')" title="Portrait">🖹</button>
+          <button class="ctb" onclick="setOrientation('infoStage','landscape')" title="Landscape">🖺</button>
+          <button class="ctb" onclick="enlargeCanvas('infoStage')" title="Fullscreen">⛶ Fullscreen</button>
+          <button class="ctb" onclick="deleteSelected('infoStage')" title="Delete selected">Del Selected</button>
+          <button class="ctb" onclick="clearCanvas('infoStage')" style="background:#7b2020;color:#fff;">Clear All</button>
           
           
           
@@ -2114,6 +2134,16 @@ input[type=color].fb-clr{
               <button class="sp-btn" onclick="spAddShape('nlStage','arch')" title="Arch (rounded top)">⌢</button>
             </div>
           </div>
+          <span class="ctb-sep"></span>
+          <button class="ctb" onclick="triggerImgUpload('nlStage','nlStageImgIn')">+ Image</button>
+          <input type="file" id="nlStageImgIn" accept="image/*" style="display:none;" onchange="handleImgUpload(event,'nlStage')">
+          <span class="ctb-sep"></span>
+          <button class="ctb" id="nlGrid" onclick="toggleGrid('nlStage')">Grid</button>
+          <button class="ctb" onclick="setOrientation('nlStage','portrait')" title="Portrait">🖹</button>
+          <button class="ctb" onclick="setOrientation('nlStage','landscape')" title="Landscape">🖺</button>
+          <button class="ctb" onclick="enlargeCanvas('nlStage')" title="Fullscreen">⛶ Fullscreen</button>
+          <button class="ctb" onclick="deleteSelected('nlStage')" title="Delete selected">Del Selected</button>
+          <button class="ctb" onclick="clearCanvas('nlStage')" style="background:#7b2020;color:#fff;">Clear All</button>
           
           
           
@@ -2587,6 +2617,16 @@ input[type=color].fb-clr{
               <button class="sp-btn" onclick="spAddShape('posterStage','arch')" title="Arch (rounded top)">⌢</button>
             </div>
           </div>
+          <span class="ctb-sep"></span>
+          <button class="ctb" onclick="triggerImgUpload('posterStage','posterStageImgIn')">+ Image</button>
+          <input type="file" id="posterStageImgIn" accept="image/*" style="display:none;" onchange="handleImgUpload(event,'posterStage')">
+          <span class="ctb-sep"></span>
+          <button class="ctb" id="posterGrid" onclick="toggleGrid('posterStage')">Grid</button>
+          <button class="ctb" onclick="setOrientation('posterStage','portrait')" title="Portrait">🖹</button>
+          <button class="ctb" onclick="setOrientation('posterStage','landscape')" title="Landscape">🖺</button>
+          <button class="ctb" onclick="enlargeCanvas('posterStage')" title="Fullscreen">⛶ Fullscreen</button>
+          <button class="ctb" onclick="deleteSelected('posterStage')" title="Delete selected">Del Selected</button>
+          <button class="ctb" onclick="clearCanvas('posterStage')" style="background:#7b2020;color:#fff;">Clear All</button>
           
           
           
@@ -6302,6 +6342,46 @@ function addStyledShapeByName(stageId, shapeName){
 // ══════════════════════════════════════════════
 let selectedExercises = [];
 
+
+function changeSelection(){
+  if(!confirm('Go back to change your exercise selection?\n\nNote: Any work on your current exercises will be kept — only your tab choices will change.')) return;
+  // Reset selection
+  selectedExercises = [];
+  [0,1,2,3,4].forEach(i=>{
+    const card = document.getElementById('card'+i);
+    const chk  = document.getElementById('chk'+i);
+    if(card) card.classList.remove('selected');
+    if(chk)  chk.checked = false;
+  });
+  applyTabBlocking();
+  // Update counter
+  const ctr = document.getElementById('selCounter');
+  if(ctr) ctr.textContent = '0/3 selected';
+  const startBtn = document.getElementById('startBtn');
+  if(startBtn) startBtn.style.display='none';
+  // Go to instructions
+  goEx('instructions', document.getElementById('btnInstr'));
+}
+
+// Block all exercise tabs until student makes selection
+function applyTabBlocking(){
+  [0,1,2,3,4].forEach(i=>{
+    const btn = document.querySelector(`[onclick="goEx(${i},this)"]`);
+    if(!btn) return;
+    if(selectedExercises.length === 3 && selectedExercises.includes(i)){
+      btn.style.opacity='1';
+      btn.style.pointerEvents='auto';
+      btn.title='';
+    } else {
+      btn.style.opacity='.3';
+      btn.style.pointerEvents='none';
+      btn.title = selectedExercises.length < 3
+        ? 'Select your 3 exercises on the Instructions tab first'
+        : 'This exercise was not selected';
+    }
+  });
+}
+
 function toggleExChoice(idx, card){
   const chk = document.getElementById('chk'+idx);
   const already = selectedExercises.includes(idx);
@@ -6318,6 +6398,7 @@ function toggleExChoice(idx, card){
     card.classList.add('selected');
     chk.checked = true;
   }
+  applyTabBlocking(); // update tab blocking live as cards are toggled
   const n = selectedExercises.length;
   const ctr = document.getElementById('selCounter');
   ctr.textContent = n + ' of 3 selected';
@@ -6331,18 +6412,7 @@ function startProject(){
     alert('Please select exactly 3 exercises first.');
     return;
   }
-  // Show only selected exercise buttons in nav; grey out others
-  [0,1,2,3,4].forEach(i=>{
-    const btn = document.querySelector(`[onclick="goEx(${i},this)"]`) ||
-                document.getElementById('navBtn'+i);
-    if(btn){
-      if(selectedExercises.includes(i)){
-        btn.style.opacity='1'; btn.style.pointerEvents='auto';
-      } else {
-        btn.style.opacity='.35'; btn.style.pointerEvents='none';
-      }
-    }
-  });
+  applyTabBlocking(); // enforce final tab state
   // Go to first selected exercise
   const firstEx = Math.min(...selectedExercises);
   const btn = document.querySelector(`[onclick="goEx(${firstEx},this)"]`);
@@ -7738,6 +7808,7 @@ document.addEventListener('input', ()=>{
 // Cloud save field listeners (no initFirebase needed — uses REST API)
 window.addEventListener('load', function(){
   setCloudStatus('saved','☁️ Ready');
+  applyTabBlocking(); // block tabs until 3 exercises selected
   const idField   = document.getElementById('iId');
   const nameField = document.getElementById('iName');
   const secField  = document.getElementById('iSec');
