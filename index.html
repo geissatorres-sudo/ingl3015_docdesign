@@ -670,6 +670,21 @@ input[type=color].fb-clr{
 #cloudStatus.saved   {background:rgba(39,174,96,.2); color:#2ecc71;}
 #cloudStatus.error   {background:rgba(231,76,60,.2);  color:#e74c3c;}
 
+/* ═══ BOTTOM FORMAT BARS HIDDEN — all controls are in the right panel ═══ */
+.format-bar,
+.fb-adv-row,
+.fb-txt-row,
+.img-shape-row { display:none !important; }
+
+/* Click-to-edit hint on empty canvas */
+.design-stage::after{
+  content: 'Click any element to edit it → Properties Panel opens on the right';
+  position:absolute;bottom:8px;left:50%;transform:translateX(-50%);
+  color:rgba(0,0,0,.2);font-size:.72rem;pointer-events:none;
+  white-space:nowrap;font-family:'DM Sans',sans-serif;
+}
+.design-stage.has-content::after{ display:none; }
+
 </style>
 
   <!-- Firebase via REST API — no SDK needed -->
@@ -7034,7 +7049,41 @@ function _ppApplyDepth(sh, el){
   markDone(curEx<5?curEx:0);
 }
 
-function ppEffect(effect){ if(!_activeStage) return; const fakeE={target:{closest:()=>({id:'flyerShapeRow'})},currentTarget:{dataset:{eff:effect}}}; applyShapeEffect({target:{closest:(s)=>s==='[data-eff]'?{dataset:{eff:effect}}:null},currentTarget:{dataset:{eff:effect},closest:(s)=>s==='.img-shape-row'?{id:_activeStage.replace('Stage','ShapeRow').replace('flyerShapeRow','flyerShapeRow')}:null}},effect); }
+function ppEffect(effect){
+  if(!_activeStage) return;
+  const st=getState(_activeStage); if(!st||!st.selected) return;
+  const el=st.selected;
+  // Clear previous effects
+  el.style.filter=''; el.style.boxShadow=''; el.style.webkitMask=''; el.style.mask='';
+  document.getElementById('reflect_'+el.dataset.id)?.remove();
+  const EFFECTS={
+    'none':{},
+    'shadow-sm':{filter:'drop-shadow(4px 6px 10px rgba(0,0,0,0.65))'},
+    'glow-gold':{filter:'drop-shadow(0 0 14px rgba(201,168,76,0.95)) drop-shadow(0 0 6px rgba(201,168,76,0.6))'},
+    'glow-blue':{filter:'drop-shadow(0 0 14px rgba(41,128,185,0.9))'},
+    'soft-edge':{webkitMask:'radial-gradient(ellipse 80% 80% at 50% 50%,black 50%,transparent 100%)'},
+    'bevel':{boxShadow:'inset 4px 4px 6px rgba(255,255,255,0.55),inset -4px -4px 6px rgba(0,0,0,0.35)'},
+    'emboss':{filter:'contrast(1.15) brightness(1.05)',boxShadow:'2px 2px 4px rgba(0,0,0,0.4),-2px -2px 4px rgba(255,255,255,0.5)'},
+    'blur-edge':{filter:'drop-shadow(0 0 20px rgba(0,0,0,0.8))'},
+  };
+  const eff=EFFECTS[effect]||{};
+  if(eff.filter)      el.style.filter=eff.filter;
+  if(eff.boxShadow)   el.style.boxShadow=eff.boxShadow;
+  if(eff.webkitMask){ el.style.webkitMask=eff.webkitMask; el.style.mask=eff.webkitMask; }
+  if(effect==='reflect'){
+    const stage=el.closest('.design-stage');
+    if(stage){
+      const clone=el.cloneNode(true);
+      clone.id='reflect_'+el.dataset.id;
+      clone.style.transform=(el.style.transform||'')+' scaleY(-1)';
+      clone.style.opacity='0.35'; clone.style.pointerEvents='none';
+      clone.style.top=(parseFloat(el.style.top||0)+(el.offsetHeight||60)+2)+'px';
+      clone.style.webkitMask='linear-gradient(to bottom,black 0%,transparent 80%)';
+      stage.appendChild(clone);
+    }
+  }
+  markDone(curEx<5?curEx:0);
+}
 
 function ppTextShad(p){ if(_activeStage) applyTextShadow(_activeStage,p); }
 function ppTextOutline(){ if(_activeStage) applyTextOutline(_activeStage); }
