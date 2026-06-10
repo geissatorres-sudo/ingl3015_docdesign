@@ -7490,39 +7490,74 @@ async function cloudSave(){
   }
   setCloudStatus('saving','☁️ Saving...');
   try{
-    // Collect all data into one JSON string
+    // Serialize canvases — skip huge images to stay under Firestore 1MB limit
     const canvases = {};
     ['flyerStage','coverStage','infoStage','nlStage','posterStage'].forEach(id=>{
       canvases[id] = serializeCanvas(id);
     });
-    const payload = JSON.stringify({
+    const reflections = {
+      flyer:  document.getElementById('flyerRef')?.value||'',
+      cover:  document.getElementById('coverRef')?.value||'',
+      info:   document.getElementById('infoRef')?.value||'',
+      nl:     document.getElementById('nlRef')?.value||'',
+      poster: document.getElementById('posterRef')?.value||'',
+    };
+    const saveData = {
       studentName:    nm,
       studentSection: document.getElementById('iSec')?.value||'',
       studentId:      sid,
-      selectedEx:     selectedExercises,
-      reflections:{
-        flyer:  document.getElementById('flyerRef')?.value||'',
-        cover:  document.getElementById('coverRef')?.value||'',
-        info:   document.getElementById('infoRef')?.value||'',
-        nl:     document.getElementById('nlRef')?.value||'',
-        poster: document.getElementById('posterRef')?.value||'',
-      },
+      selectedEx:     selectedExercises||[],
+      reflections,
       canvases,
       ts: new Date().toISOString(),
-    });
-    // Firestore REST: PATCH creates or updates the document
+    };
+
+    let payload = JSON.stringify(saveData);
+
+    // If payload > 900KB, remove canvas image data (keep shapes/text/styles)
+    if(payload.length > 900000){
+      console.warn('Payload too large ('+Math.round(payload.length/1024)+'KB), removing images...');
+      Object.keys(saveData.canvases).forEach(stageId=>{
+        saveData.canvases[stageId] = (saveData.canvases[stageId]||[]).map(el=>{
+          if(el.imgSrc) el.imgSrc = '__large__'; // strip image data
+          return el;
+        });
+      });
+      payload = JSON.stringify(saveData);
+    }
+
+    // If still too large, skip canvases entirely and just save text fields
+    if(payload.length > 900000){
+      console.warn('Still too large, saving text only...');
+      saveData.canvases = {};
+      payload = JSON.stringify(saveData);
+    }
+
+    console.log('Saving '+Math.round(payload.length/1024)+'KB to key:', key);
+
     const url = `${_FB_BASE}/${encodeURIComponent(key)}?key=${_FB_API_KEY}`;
     const res = await fetch(url, {
-      method: 'PATCH',
+      method:  'PATCH',
       headers: {'Content-Type':'application/json'},
-      body: JSON.stringify({ fields:{ data:{ stringValue: payload } } })
+      body:    JSON.stringify({ fields:{ data:{ stringValue: payload } } })
     });
-    if(!res.ok) throw new Error(`HTTP ${res.status}: ${await res.text()}`);
+
+    if(!res.ok){
+      const errText = await res.text();
+      let errMsg = `HTTP ${res.status}`;
+      if(res.status===403) errMsg = '403 — Check Firestore Rules';
+      if(res.status===400) errMsg = '400 — Bad data format';
+      if(res.status===413) errMsg = '413 — Data too large';
+      throw new Error(errMsg + ': ' + errText.slice(0,100));
+    }
+
     setCloudStatus('saved','☁️ Saved ✓');
     setTimeout(()=>setCloudStatus('','☁️ Auto-saved'),3000);
+    console.log('Cloud save successful ✓');
+
   } catch(e){
     console.error('Cloud save error:', e);
-    setCloudStatus('error','⚠️ Save failed');
+    setCloudStatus('error','⚠️ '+e.message.slice(0,40));
   }
 }
 
