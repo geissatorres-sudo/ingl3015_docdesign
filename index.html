@@ -463,15 +463,14 @@ input[type=color]{width:26px;height:24px;border:none;cursor:pointer;
    so nothing is ever hidden behind the panel.
 ─────────────────────────────────────────────────────────── */
 #propsPanel{
-  position:fixed;right:-308px;top:58px;bottom:0;width:300px;
+  position:fixed;right:0;top:58px;bottom:0;width:300px;
   background:#0e1c30;border-left:2px solid rgba(201,168,76,.45);
   overflow-y:auto;overflow-x:hidden;z-index:9000;
-  transition:right .25s ease;
-  display:flex;flex-direction:column;padding-bottom:2rem;
+  display:none;flex-direction:column;padding-bottom:2rem;
   box-shadow:-4px 0 24px rgba(0,0,0,.45);
   scrollbar-width:thin;scrollbar-color:#2a3f5f transparent;
 }
-#propsPanel.vis{right:0;}
+#propsPanel.vis{display:flex;}
 #propsPanel::-webkit-scrollbar{width:4px;}
 #propsPanel::-webkit-scrollbar-thumb{background:#2a3f5f;border-radius:2px;}
 
@@ -4455,11 +4454,9 @@ function setupCel(el, stageId) {
     document.addEventListener('pointerup',onUp);
   });
 
-  // ── CLICK: stop propagation + always show panel ──────────────────
-  // This fires after pointerdown+up and MUST not reach the stage's onclick
+  // ── CLICK: stop propagation only (panel already shown by pointerdown) ──
   el.addEventListener('click', function(e){
-    e.stopPropagation();   // stop click reaching stageClick → prevents deselect
-    selectCel(stageId, el); // re-confirm selection & panel stays visible
+    e.stopPropagation();   // prevent click reaching stageClick
   });
 
   // ── DOUBLE-CLICK: edit text on any element ───────────────────────
@@ -6851,8 +6848,7 @@ function showPropsPanel(stageId, el){
   _activeStage = stageId;
   const panel = document.getElementById('propsPanel');
   if(!panel) return;
-  panel.classList.add('vis');
-  document.body.classList.add('panel-open');
+  panel.classList.add('vis'); // display:flex — no transition, instant
 
   // Update header
   const icons = {text:'🔤', shape:'⬟', image:'🖼️'};
@@ -6898,8 +6894,7 @@ function showPropsPanel(stageId, el){
 function closePropPanel(){
   const panel = document.getElementById('propsPanel');
   if(!panel) return;
-  panel.classList.remove('vis');
-  document.body.classList.remove('panel-open');
+  panel.classList.remove('vis'); // display:none
   _activeStage = null;
 }
 
@@ -7222,7 +7217,13 @@ document.addEventListener('click', function(e){
 });
 
 // Init on load
-document.addEventListener('DOMContentLoaded', ()=>{ try{ initPropsPanel(); } catch(e){ console.warn(e); } });
+document.addEventListener('DOMContentLoaded', ()=>{
+  try{ initPropsPanel(); } catch(e){ console.warn(e); }
+  // Prevent clicks inside the panel from ever bubbling to canvas/document
+  const pp = document.getElementById('propsPanel');
+  if(pp) pp.addEventListener('click', e => e.stopPropagation());
+  if(pp) pp.addEventListener('pointerdown', e => e.stopPropagation());
+});
 
 // ══════════════════════════════════════════════
 // FONT PICKER — visible list (replaces trigger+dropdown)
