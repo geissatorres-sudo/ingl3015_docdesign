@@ -666,7 +666,15 @@ input[type=color].fb-clr{
   border-top:1px solid rgba(255,255,255,.07);
 }
 
+#cloudStatus.saving  {background:rgba(201,168,76,.2);color:#C9A84C;}
+#cloudStatus.saved   {background:rgba(39,174,96,.2); color:#2ecc71;}
+#cloudStatus.error   {background:rgba(231,76,60,.2);  color:#e74c3c;}
+
 </style>
+
+  <!-- Firebase SDK -->
+  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
 </head>
 <body>
 
@@ -702,6 +710,21 @@ input[type=color].fb-clr{
   <button class="ex-btn" onclick="goEx(3,this)"><span class="ck" id="ck3">4</span> Newsletter</button>
   <button class="ex-btn" onclick="goEx(4,this)"><span class="ck" id="ck4">5</span> Activity Poster</button>
   <button class="ex-btn" onclick="goEx(5,this)" style="margin-left:auto;border-left:1px solid rgba(255,255,255,.1);">📄 Report &amp; Submit</button>
+
+  <span style="margin-left:auto;display:flex;align-items:center;gap:.4rem;">
+    <button onclick="cloudSave()" style="
+      background:rgba(201,168,76,.25);color:#C9A84C;border:1px solid rgba(201,168,76,.4);
+      border-radius:10px;padding:.22rem .65rem;font-size:.68rem;font-weight:700;cursor:pointer;
+    " title="Save work to cloud">💾 Save</button>
+    <button onclick="cloudLoad()" style="
+      background:rgba(255,255,255,.08);color:rgba(255,255,255,.6);border:1px solid rgba(255,255,255,.15);
+      border-radius:10px;padding:.22rem .65rem;font-size:.68rem;cursor:pointer;
+    " title="Load saved work from cloud">📂 Load</button>
+    <span id="cloudStatus" style="
+      padding:.2rem .65rem;border-radius:10px;font-size:.68rem;font-weight:600;
+      background:rgba(255,255,255,.08);color:rgba(255,255,255,.4);white-space:nowrap;
+    ">☁️ Connecting...</span>
+  </span>
 </nav>
 <div>
 
@@ -7345,6 +7368,243 @@ function doTextArt(stageId, style){
 }
 
 // _activeStage is set inside selectCel directly
+
+// ════════════════════════════════════════════════════════════════════
+//  FIREBASE CLOUD SAVE
+//  Replace the placeholder values below with your Firebase project
+//  credentials (from Firebase Console → Project Settings → Your apps)
+// ════════════════════════════════════════════════════════════════════
+const firebaseConfig = {
+  apiKey:            "AIzaSyDyerkXQpDd15egdxfKEEPcruetn1AjMm4",
+  authDomain:        "ingl3015-docdesign-b3d77.firebaseapp.com",
+  projectId:         "ingl3015-docdesign-b3d77",
+  storageBucket:     "ingl3015-docdesign-b3d77.firebasestorage.app",
+  messagingSenderId: "1098507126112",
+  appId:             "1:1098507126112:web:aee9748f55c93a7e930a05"
+};
+
+let _db = null;
+function initFirebase(){
+  try{
+    firebase.initializeApp(firebaseConfig);
+    _db = firebase.firestore();
+    // Test connection immediately with a small read
+    _db.collection('ingl3015').limit(1).get()
+      .then(()=>{
+        console.log('Firebase connected and Firestore accessible ✓');
+        setCloudStatus('saved','☁️ Connected ✓');
+        setTimeout(()=>setCloudStatus('','☁️ Ready — enter your ID to save'),4000);
+      })
+      .catch(err=>{
+        console.error('Firestore rules blocking access:', err);
+        setCloudStatus('error','⚠️ Check Firestore Rules');
+        alert('Firebase connected but Firestore rules are blocking access.\n\nFix: Go to Firebase Console → Firestore → Rules → set allow read, write: if true → Publish.');
+      });
+  } catch(e){
+    console.error('Firebase init error:', e);
+    setCloudStatus('error','⚠️ Firebase error: '+e.message);
+  }
+}
+
+// ── Serialize one canvas to a plain object ──────────────────────────
+function serializeCanvas(stageId){
+  const stage = document.getElementById(stageId);
+  if(!stage) return [];
+  return Array.from(stage.querySelectorAll('.cel')).map(el => {
+    const obj = {
+      type:        el.dataset.type || 'shape',
+      id:          el.dataset.id   || '',
+      activeShape: el.dataset.activeShape || '',
+      rotation:    el.dataset.rotation   || '0',
+      flipX:       el.dataset.flipX      || '1',
+      flipY:       el.dataset.flipY      || '1',
+      lineEl:      el.dataset.lineEl     || '',
+      styles: {
+        left:el.style.left,top:el.style.top,
+        width:el.style.width,height:el.style.height,
+        background:el.style.background,color:el.style.color,
+        fontSize:el.style.fontSize,fontFamily:el.style.fontFamily,
+        fontWeight:el.style.fontWeight,fontStyle:el.style.fontStyle,
+        textAlign:el.style.textAlign,textDecoration:el.style.textDecoration,
+        textShadow:el.style.textShadow,letterSpacing:el.style.letterSpacing,
+        lineHeight:el.style.lineHeight,writingMode:el.style.writingMode,
+        borderRadius:el.style.borderRadius,border:el.style.border,
+        clipPath:el.style.clipPath,opacity:el.style.opacity,
+        transform:el.style.transform,boxShadow:el.style.boxShadow,
+        filter:el.style.filter,padding:el.style.padding,
+        zIndex:el.style.zIndex,minHeight:el.style.minHeight,
+        webkitTextStroke:el.style.webkitTextStroke,
+      }
+    };
+    if(el.dataset.type==='text'){
+      obj.html = el.innerHTML || '';
+    } else if(el.dataset.type==='image'){
+      const img = el.querySelector('img');
+      if(img){
+        // Skip very large base64 images (>200KB) — too big for Firestore 1MB limit
+        obj.imgSrc = (img.src.startsWith('data:') && img.src.length > 200000)
+          ? '__large__' : img.src;
+      }
+    }
+    return obj;
+  });
+}
+
+// ── Restore one canvas from saved data ─────────────────────────────
+function restoreCanvas(stageId, elements){
+  if(!elements || !elements.length) return;
+  const stage = document.getElementById(stageId);
+  if(!stage) return;
+  // Clear existing
+  stage.querySelectorAll('.cel').forEach(e=>e.remove());
+  stage.querySelectorAll('.cel-depth-shadow').forEach(e=>e.remove());
+  const st = getState(stageId);
+
+  elements.forEach(data => {
+    const el = document.createElement('div');
+    el.className = 'cel cel-' + (data.type||'shape');
+    el.dataset.type        = data.type || 'shape';
+    el.dataset.id          = data.id   || ('cel_' + Math.random().toString(36).slice(2,7));
+    el.dataset.activeShape = data.activeShape || '';
+    el.dataset.rotation    = data.rotation    || '0';
+    el.dataset.flipX       = data.flipX       || '1';
+    el.dataset.flipY       = data.flipY       || '1';
+    if(data.lineEl) el.dataset.lineEl = data.lineEl;
+    // Apply saved styles
+    const s = data.styles || {};
+    Object.keys(s).forEach(prop => { if(s[prop]) el.style[prop] = s[prop]; });
+    // Content
+    if(data.type==='text' && data.html !== undefined){
+      el.innerHTML = data.html;
+    } else if(data.type==='image'){
+      const img = document.createElement('img');
+      if(data.imgSrc && data.imgSrc !== '__large__'){
+        img.src = data.imgSrc;
+        img.style.cssText = 'width:100%;height:100%;object-fit:cover;display:block;pointer-events:none;';
+      } else {
+        el.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;'
+          +'height:100%;color:#999;font-size:.72rem;text-align:center;padding:.3rem;">'
+          +'📷 Image too large.<br>Please re-upload.</div>';
+      }
+      if(data.imgSrc !== '__large__') el.appendChild(img);
+    }
+    setupCel(el, stageId);
+    addResizeHandles(el);
+    stage.appendChild(el);
+    // Update nextId counter
+    const n = parseInt((data.id||'').replace('cel_',''))||0;
+    if(st && n >= st.nextId) st.nextId = n + 1;
+  });
+}
+
+// ── Cloud Save ──────────────────────────────────────────────────────
+async function cloudSave(){
+  if(!_db) return;
+  const sid = (document.getElementById('iId')?.value||'').trim();
+  const nm  = (document.getElementById('iName')?.value||'').trim();
+  const key = (sid || nm || '').replace(/[^a-zA-Z0-9_-]/g,'_').toLowerCase();
+  if(!key){
+    setCloudStatus('error','⚠️ Enter your name/ID first');
+    setTimeout(()=>setCloudStatus('','☁️ Ready'),3000);
+    return;
+  }
+
+  setCloudStatus('saving','☁️ Saving...');
+  try{
+    const canvases = {};
+    ['flyerStage','coverStage','infoStage','nlStage','posterStage'].forEach(id=>{
+      canvases[id] = serializeCanvas(id);
+    });
+    await _db.collection('ingl3015').doc(key).set({
+      studentName:    nm,
+      studentSection: document.getElementById('iSec')?.value||'',
+      studentId:      sid,
+      selectedEx:     selectedExercises,
+      reflections:{
+        flyer:   document.getElementById('flyerRef')?.value||'',
+        cover:   document.getElementById('coverRef')?.value||'',
+        info:    document.getElementById('infoRef')?.value||'',
+        nl:      document.getElementById('nlRef')?.value||'',
+        poster:  document.getElementById('posterRef')?.value||'',
+      },
+      canvases,
+      ts: new Date().toISOString(),
+    }, {merge:true});
+    setCloudStatus('saved','☁️ Saved ✓');
+    setTimeout(()=>setCloudStatus('','☁️ Auto-saved'), 3000);
+  } catch(e){
+    setCloudStatus('error','⚠️ Save failed');
+    console.error('Cloud save error:', e);
+  }
+}
+
+// ── Cloud Load ──────────────────────────────────────────────────────
+async function cloudLoad(){
+  if(!_db) return;
+  const sid = (document.getElementById('iId')?.value||'').trim();
+  const nm  = (document.getElementById('iName')?.value||'').trim();
+  const key = (sid || nm || '').replace(/[^a-zA-Z0-9_-]/g,'_').toLowerCase();
+  if(!key) return;
+
+  try{
+    const doc = await _db.collection('ingl3015').doc(key).get();
+    if(!doc.exists){ return; }
+    const data = doc.data();
+    const mins = Math.round((Date.now() - new Date(data.ts||0))/60000);
+    if(!confirm(`Cloud save found for "${data.studentName}" (${mins} min ago).\nRestore your work?`)) return;
+
+    // Restore form fields
+    const iName=document.getElementById('iName');
+    const iSec=document.getElementById('iSec');
+    const iId=document.getElementById('iId');
+    if(iName&&data.studentName)    iName.value    = data.studentName;
+    if(iSec&&data.studentSection)  iSec.value     = data.studentSection;
+    if(iId&&data.studentId)        iId.value      = data.studentId;
+    // Restore selected exercises
+    if(data.selectedEx?.length){
+      data.selectedEx.forEach(i=>{
+        const card=document.getElementById('card'+i);
+        if(card&&!selectedExercises.includes(i)) toggleExChoice(i,card);
+      });
+    }
+    // Restore reflections
+    const rf = data.reflections||{};
+    const rMap = {flyerRef:'flyer',coverRef:'cover',infoRef:'info',nlRef:'nl',posterRef:'poster'};
+    Object.entries(rMap).forEach(([id,key2])=>{
+      const el=document.getElementById(id);
+      if(el&&rf[key2]) el.value=rf[key2];
+    });
+    // Restore canvases
+    if(data.canvases){
+      Object.entries(data.canvases).forEach(([stageId,els])=>{
+        restoreCanvas(stageId, els);
+      });
+    }
+    setCloudStatus('saved','☁️ Restored ✓');
+  } catch(e){
+    console.error('Cloud load error:', e);
+  }
+}
+
+function setCloudStatus(cls, text){
+  const el = document.getElementById('cloudStatus');
+  if(!el) return;
+  el.className = cls;
+  el.textContent = text;
+}
+
+// Auto-save every 60 seconds + on any input
+setInterval(cloudSave, 60000);
+document.addEventListener('input', ()=>{ clearTimeout(window._csSaveTimer); window._csSaveTimer=setTimeout(cloudSave,3000); });
+
+// Add Load button trigger when student ID field loses focus
+document.addEventListener('DOMContentLoaded', ()=>{
+  initFirebase();
+  const idField = document.getElementById('iId');
+  const nameField = document.getElementById('iName');
+  if(idField) idField.addEventListener('blur', cloudLoad);
+  if(nameField) nameField.addEventListener('blur', ()=>{ if(!document.getElementById('iId')?.value) cloudLoad(); });
+});
 
 </script>
 </body></html>
