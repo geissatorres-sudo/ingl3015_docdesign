@@ -4424,89 +4424,84 @@ function handleImgUpload(e, stageId){
 }
 
 function setupCel(el, stageId) {
-  // ── Drag via document listeners — most reliable cross-browser ──────
+  // ── DRAG via document listeners ──────────────────────────────────
   el.addEventListener('pointerdown', function(e) {
     if(e.button !== 0) return;
     if(e.target.classList.contains('res-handle')) return;
     if(el.contentEditable === 'true') return;
-
     e.preventDefault();
-    e.stopPropagation();
-
+    e.stopPropagation();   // stop pointerdown bubbling
     selectCel(stageId, el);
-
-    const sx = e.clientX;
-    const sy = e.clientY;
-    const sl = parseFloat(el.style.left) || 0;
-    const st2 = parseFloat(el.style.top) || 0;
-
-    function onMove(me) {
-      const newL = Math.max(0, sl + me.clientX - sx);
-      const newT = Math.max(0, st2 + me.clientY - sy);
-      el.style.left = newL + 'px';
-      el.style.top  = newT + 'px';
-      // Move depth shadow in sync
-      const stg = el.closest('.design-stage');
-      if(stg && el.dataset.id){
-        const sh = stg.querySelector('.cel-depth-shadow[data-for="'+el.dataset.id+'"]');
+    const sx=e.clientX, sy=e.clientY;
+    const sl=parseFloat(el.style.left)||0;
+    const st2=parseFloat(el.style.top)||0;
+    function onMove(me){
+      el.style.left=Math.max(0,sl+me.clientX-sx)+'px';
+      el.style.top =Math.max(0,st2+me.clientY-sy)+'px';
+      const stg=el.closest('.design-stage');
+      if(stg&&el.dataset.id){
+        const sh=stg.querySelector('.cel-depth-shadow[data-for="'+el.dataset.id+'"]');
         if(sh){
-          sh.style.left = (newL + (parseFloat(sh.dataset.offX)||0)) + 'px';
-          sh.style.top  = (newT + (parseFloat(sh.dataset.offY)||0)) + 'px';
+          sh.style.left=(Math.max(0,sl+me.clientX-sx)+(parseFloat(sh.dataset.offX)||0))+'px';
+          sh.style.top =(Math.max(0,st2+me.clientY-sy)+(parseFloat(sh.dataset.offY)||0))+'px';
         }
       }
     }
-    function onUp() {
-      document.removeEventListener('pointermove', onMove);
-      document.removeEventListener('pointerup',   onUp);
+    function onUp(){
+      document.removeEventListener('pointermove',onMove);
+      document.removeEventListener('pointerup',onUp);
     }
-    document.addEventListener('pointermove', onMove);
-    document.addEventListener('pointerup',   onUp);
+    document.addEventListener('pointermove',onMove);
+    document.addEventListener('pointerup',onUp);
   });
 
-  // ── Double-click: edit text on ANY element (text, shape, or bar) ──
-  el.addEventListener('dblclick', function(e) {
+  // ── CLICK: stop propagation + always show panel ──────────────────
+  // This fires after pointerdown+up and MUST not reach the stage's onclick
+  el.addEventListener('click', function(e){
+    e.stopPropagation();   // stop click reaching stageClick → prevents deselect
+    selectCel(stageId, el); // re-confirm selection & panel stays visible
+  });
+
+  // ── DOUBLE-CLICK: edit text on any element ───────────────────────
+  el.addEventListener('dblclick', function(e){
     e.stopPropagation();
-    el.contentEditable = 'true';
-    el.style.cursor    = 'text';
-    // Add text-friendly styles if this is a shape (not already text)
-    if(el.dataset.type !== 'text'){
-      if(!el.style.display||el.style.display==='block')
-        el.style.display='flex';
-      el.style.alignItems    = 'center';
-      el.style.justifyContent= 'center';
-      el.style.textAlign     = 'center';
-      if(!el.style.color) el.style.color='#ffffff';
+    el.contentEditable='true';
+    el.style.cursor='text';
+    if(el.dataset.type!=='text'){
+      el.style.display='flex';
+      el.style.alignItems='center';
+      el.style.justifyContent='center';
+      el.style.textAlign='center';
+      if(!el.style.color||el.style.color==='rgba(0, 0, 0, 0)') el.style.color='#ffffff';
       if(!el.style.fontSize) el.style.fontSize='16px';
       if(!el.style.fontFamily) el.style.fontFamily='Arial,sans-serif';
     }
     el.focus();
-    // Select all text so it's easy to replace
     if(el.textContent.trim()){
-      const range=document.createRange();
-      range.selectNodeContents(el);
-      const sel=window.getSelection();
-      sel.removeAllRanges(); sel.addRange(range);
+      try{
+        const range=document.createRange();
+        range.selectNodeContents(el);
+        const sel=window.getSelection();
+        sel.removeAllRanges(); sel.addRange(range);
+      } catch(ex){}
     }
   });
 
-  el.addEventListener('blur', function() {
-    if(el.dataset.type === 'text'){
-      el.contentEditable = 'false';
-      el.style.cursor = 'move';
-    }
+  // ── BLUR: finish text editing ─────────────────────────────────────
+  el.addEventListener('blur', function(){
+    el.contentEditable='false';
+    el.style.cursor='move';
   });
 
-  // ── Right-click: delete ─────────────────────────────────────────
-  el.addEventListener('contextmenu', function(e) {
-    e.preventDefault();
-    e.stopPropagation();
+  // ── RIGHT-CLICK: delete ───────────────────────────────────────────
+  el.addEventListener('contextmenu', function(e){
+    e.preventDefault(); e.stopPropagation();
     if(confirm('Delete this element?')){
       el.closest('.design-stage')
-        ?.querySelectorAll('.cel-depth-shadow[data-for="'+el.dataset.id+'"]')
+        ?.querySelectorAll('.cel-depth-shadow[data-for="'+el.dataset.id+'"],.cel-pp-effect[data-for="'+el.dataset.id+'"]')
         .forEach(s=>s.remove());
       el.remove();
-      const st = getState(stageId);
-      if(st) st.selected = null;
+      const st=getState(stageId); if(st) st.selected=null;
     }
   });
 }
@@ -6342,7 +6337,7 @@ function goEx(n, btn){
     curEx = n;
     if(n===5){ updateSubmit(); genSub(); }
   }
-  window.scrollTo({top:0, behavior:'smooth'});
+  // scrollTo removed — was interfering with panel
 }
 
 // ══════════════════════════════════════════════
