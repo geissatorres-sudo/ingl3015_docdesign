@@ -4790,8 +4790,11 @@ function deleteSelected(stageId){
   const st=getState(stageId);
   if(st.selected){
     const sel=st.selected;
-    // Remove depth shadow if exists
-    document.getElementById(stageId)?.querySelectorAll('.cel-depth-shadow[data-for="'+sel.dataset.id+'"]').forEach(s=>s.remove());
+    const id=sel.dataset.id;
+    // Remove depth shadow AND effect divs
+    document.getElementById(stageId)?.querySelectorAll(
+      '.cel-depth-shadow[data-for="'+id+'"],.cel-pp-effect[data-for="'+id+'"]'
+    ).forEach(s=>s.remove());
     sel.remove(); st.selected=null;
   }
   document.getElementById(stageId+'FB')?.classList.remove('vis');
@@ -4809,7 +4812,7 @@ function layerEl(stageId,dir){
 function clearCanvas(stageId){
   if(!confirm('Clear all elements from this canvas?')) return;
   const stage=document.getElementById(stageId);
-  stage.querySelectorAll('.cel, .cel-depth-shadow').forEach(e=>e.remove());
+  stage.querySelectorAll('.cel, .cel-depth-shadow, .cel-pp-effect').forEach(e=>e.remove());
   getState(stageId).selected=null;
   document.getElementById(stageId+'FB')?.classList.remove('vis');
 }
@@ -6724,6 +6727,7 @@ window.addEventListener('load', function(){
 // PROPERTIES PANEL ENGINE
 // ════════════════════════════════════════════════
 let _activeStage = null;
+let _ppActiveEl  = null; // last element shown in Properties Panel
 
 // Font catalog
 const FONT_CATALOG = [
@@ -6944,8 +6948,9 @@ function ppFmt(prop, val){ if(_activeStage) applyFmt(_activeStage, prop, val); }
 
 function ppToggleFmt(prop, btnId){
   if(!_activeStage) return;
-  const st=getState(_activeStage); if(!st||!st.selected) return;
-  const el=st.selected;
+  const st=getState(_activeStage);
+  const el=(st&&st.selected)||_ppActiveEl;
+  if(!el) return;
   const btn=document.getElementById(btnId);
   if(prop==='bold'){
     const on=el.style.fontWeight==='bold'; el.style.fontWeight=on?'normal':'bold';
@@ -7063,8 +7068,10 @@ function _ppApplyDepth(sh, el){
 
 function ppEffect(effect){
   if(!_activeStage) return;
-  const st=getState(_activeStage); if(!st||!st.selected) return;
-  const el=st.selected;
+  const st=getState(_activeStage);
+  // Use stored element ref as fallback (color picker click can blur/deselect)
+  const el=(st&&st.selected) || _ppActiveEl;
+  if(!el) return;
   const stage=el.closest('.design-stage');
   // Clear all previous effects
   el.style.filter=''; el.style.boxShadow='';
@@ -7264,8 +7271,9 @@ function ppSetFontDisplay(name, family){
 // ══════════════════════════════════════════════
 function ppTextDir(dir){
   if(!_activeStage) return;
-  const st=getState(_activeStage); if(!st||!st.selected) return;
-  const el=st.selected;
+  const st=getState(_activeStage);
+  const el=(st&&st.selected)||_ppActiveEl;
+  if(!el) return;
   const curRot=parseFloat(el.dataset.rotation||'0');
   switch(dir){
     case 'horizontal':
@@ -7381,8 +7389,9 @@ const TEXT_ART = {
 
 function ppTextArt(style){
   if(!_activeStage) return;
-  const st=getState(_activeStage); if(!st||!st.selected) return;
-  const el=st.selected;
+  const st=getState(_activeStage);
+  const el=(st&&st.selected)||_ppActiveEl;
+  if(!el) return;
   const art=TEXT_ART[style]; if(!art) return;
   // Apply each property
   if(art.color)              el.style.color=art.color;
