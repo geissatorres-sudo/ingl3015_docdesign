@@ -4414,7 +4414,7 @@ function handleImgUpload(e, stageId){
     el.className='cel cel-img';
     el.dataset.id='cel_'+st.nextId++;
     el.dataset.type='image';
-    el.style.cssText=`left:30px;top:${30+st.nextId*5}px;width:250px;height:180px;overflow:hidden;`;
+    el.style.cssText=`left:30px;top:${30+st.nextId*5}px;width:250px;height:180px;overflow:hidden;position:absolute;z-index:50;`;
     const img=document.createElement('img');
     img.src=ev.target.result;
     img.style='width:100%;height:100%;object-fit:cover;display:block;pointer-events:none;';
@@ -4822,12 +4822,20 @@ function layerEl(stageId,dir){
   if(!st.selected) return;
   const el=st.selected;
   const stage=document.getElementById(stageId);
-  if(dir==='front') stage.appendChild(el);
-  else stage.insertBefore(el,stage.firstChild);
+  if(dir==='front'){
+    stage.appendChild(el);
+    // Give highest z-index among all elements
+    const maxZ = Math.max(0,...Array.from(stage.querySelectorAll('.cel'))
+      .map(e=>parseInt(e.style.zIndex)||0));
+    el.style.zIndex = maxZ + 10;
+  } else {
+    stage.insertBefore(el, stage.querySelector('.cel'));
+    el.style.zIndex = Math.max(0,(parseInt(el.style.zIndex)||0) - 10);
+  }
 }
 
 function clearCanvas(stageId){
-  if(!confirm('Clear all elements from this canvas?')) return;
+  if(!confirm('⚠️ Are you sure you want to clear everything?\nThis will delete ALL elements on the canvas and cannot be undone.')) return;
   const stage=document.getElementById(stageId);
   stage.querySelectorAll('.cel, .cel-depth-shadow, .cel-pp-effect').forEach(e=>e.remove());
   getState(stageId).selected=null;
