@@ -3498,8 +3498,10 @@ input[type=color]{width:26px;height:24px;border:none;cursor:pointer;
       <div class="pp-divider"></div>
       <div class="pp-swatch-cat">Effects</div>
       <div class="pp-row" style="flex-wrap:wrap;gap:3px;">
-        <button class="pp-btn" onclick="ppEffect('shadow-sm')">Shadow</button>
-        <button class="pp-btn" onclick="ppEffect('reflect')">Reflect</button>
+        <button class="pp-btn" onclick="ppEffect('shadow-sm')"   title="Soft drop shadow">🌑 Soft</button>
+        <button class="pp-btn" onclick="ppEffect('shadow-hard')" title="Hard offset shadow">⬛ Hard</button>
+        <button class="pp-btn" onclick="ppEffect('shadow-deep')" title="Deep dramatic shadow">🔲 Deep</button>
+        <button class="pp-btn" onclick="ppEffect('shadow-inner')" title="Inner shadow">◉ Inner</button>
         <button class="pp-btn" onclick="ppEffect('glow-gold')">✨ Gold Glow</button>
         <button class="pp-btn" onclick="ppEffect('glow-blue')">💙 Blue Glow</button>
         <button class="pp-btn" onclick="ppEffect('soft-edge')">Soft Edge</button>
@@ -4452,13 +4454,7 @@ function setupCel(el, stageId) {
           sh.style.left=(newLeft+(parseFloat(sh.dataset.offX)||0))+'px';
           sh.style.top =(newTop +(parseFloat(sh.dataset.offY)||0))+'px';
         }
-        // Move reflection (stays directly below the element)
-        const rf=stg.querySelector('#reflect_'+el.dataset.id);
-        if(rf){
-          const elH = el.offsetHeight || 60;
-          rf.style.left = newLeft+'px';
-          rf.style.top  = (newTop + elH + 4)+'px';
-        }
+
         // Move two-div glow/shadow effects (match element position)
         stg.querySelectorAll('.cel-pp-effect[data-for="'+el.dataset.id+'"]').forEach(eff=>{
           if(eff.id && eff.id.startsWith('reflect_')) return; // handled above
@@ -7108,9 +7104,12 @@ function ppEffect(effect){
   // For shadow/glow on clip-path shapes: use two-div technique
   const needsTwoDiv=hasClip&&['shadow-sm','glow-gold','glow-blue','glow-custom'].includes(effect);
   if(needsTwoDiv){
-    const colors={'shadow-sm':'rgba(0,0,0,0.65)','glow-gold':'rgba(201,168,76,0.9)',
+    const colors={'shadow-sm':'rgba(0,0,0,0.65)','shadow-hard':'rgba(0,0,0,0.9)',
+      'shadow-deep':'rgba(0,0,0,0.8)','shadow-inner':'rgba(0,0,0,0.6)',
+      'glow-gold':'rgba(201,168,76,0.9)',
       'glow-blue':'rgba(41,128,185,0.9)','glow-custom':glowClr};
-    const blurs={'shadow-sm':'14px','glow-gold':'20px','glow-blue':'20px','glow-custom':'20px'};
+    const blurs={'shadow-sm':'14px','shadow-hard':'4px','shadow-deep':'28px',
+      'shadow-inner':'10px','glow-gold':'20px','glow-blue':'20px','glow-custom':'20px'};
     const oX=effect==='shadow-sm'?4:0, oY=effect==='shadow-sm'?8:0;
     const outer=document.createElement('div');
     outer.className='cel-pp-effect'; outer.dataset.for=el.dataset.id;
@@ -7126,7 +7125,11 @@ function ppEffect(effect){
     outer.appendChild(inner); stage.insertBefore(outer,el);
   } else {
     // No clip-path — use CSS directly on element
-    const c1={'shadow-sm':'4px 8px 18px rgba(0,0,0,0.55)',
+    const c1={
+      'shadow-sm':   '4px 8px 18px rgba(0,0,0,0.55)',
+      'shadow-hard': '6px 6px 0px rgba(0,0,0,0.85)',
+      'shadow-deep': '8px 16px 32px rgba(0,0,0,0.75), 2px 4px 8px rgba(0,0,0,0.5)',
+      'shadow-inner':'inset 4px 4px 10px rgba(0,0,0,0.55), inset -2px -2px 6px rgba(0,0,0,0.3)',
       'glow-gold':'0 0 20px 6px rgba(201,168,76,0.85)',
       'glow-blue':'0 0 20px 6px rgba(41,128,185,0.85)',
       'glow-custom':'0 0 20px 6px '+glowClr,
@@ -7139,28 +7142,7 @@ function ppEffect(effect){
       el.style.mask=el.style.webkitMask;
     }
   }
-  // Reflect works for all shapes
-  if(effect==='reflect'&&stage){
-    const clone=el.cloneNode(true);
-    clone.id='reflect_'+el.dataset.id;
-    clone.className='cel-pp-effect'; clone.dataset.for=el.dataset.id;
-    // Remove resize handles from clone
-    clone.querySelectorAll('.res-handle').forEach(h=>h.remove());
-    // Position directly below the element using its actual rendered height
-    const elH = el.getBoundingClientRect().height || el.offsetHeight || 60;
-    const elTop = parseFloat(el.style.top)||0;
-    clone.style.position = 'absolute'; // .cel class lost on clone
-    clone.style.left   = el.style.left;
-    clone.style.top    = (elTop + elH + 4) + 'px';
-    clone.style.width  = el.style.width;
-    clone.style.height = el.style.height;
-    clone.style.transform        = 'scaleY(-1)';
-    clone.style.transformOrigin  = 'center top';
-    clone.style.opacity='0.3'; clone.style.pointerEvents='none';
-    clone.style.webkitMask='linear-gradient(to bottom,black 0%,transparent 70%)';
-    clone.style.mask=clone.style.webkitMask;
-    stage.appendChild(clone);
-  }
+  // reflect removed
   markDone(curEx<5?curEx:0);
 }
 
