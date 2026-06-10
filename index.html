@@ -7502,9 +7502,10 @@ async function cloudSave(){
   if(!_db) return;
   const sid = (document.getElementById('iId')?.value||'').trim();
   const nm  = (document.getElementById('iName')?.value||'').trim();
+  // Use student ID as primary key, fall back to name
   const key = (sid || nm || '').replace(/[^a-zA-Z0-9_-]/g,'_').toLowerCase();
   if(!key){
-    setCloudStatus('error','⚠️ Enter your name/ID first');
+    setCloudStatus('error','⚠️ Enter your name or ID first');
     setTimeout(()=>setCloudStatus('','☁️ Ready'),3000);
     return;
   }
@@ -7553,13 +7554,13 @@ async function cloudLoad(){
     const mins = Math.round((Date.now() - new Date(data.ts||0))/60000);
     if(!confirm(`Cloud save found for "${data.studentName}" (${mins} min ago).\nRestore your work?`)) return;
 
-    // Restore form fields
+    // Restore form fields — always set if element exists
     const iName=document.getElementById('iName');
     const iSec=document.getElementById('iSec');
     const iId=document.getElementById('iId');
-    if(iName&&data.studentName)    iName.value    = data.studentName;
-    if(iSec&&data.studentSection)  iSec.value     = data.studentSection;
-    if(iId&&data.studentId)        iId.value      = data.studentId;
+    if(iName) iName.value    = data.studentName    || '';
+    if(iSec)  iSec.value     = data.studentSection || '';
+    if(iId)   iId.value      = data.studentId      || '';
     // Restore selected exercises
     if(data.selectedEx?.length){
       data.selectedEx.forEach(i=>{
@@ -7600,10 +7601,16 @@ document.addEventListener('input', ()=>{ clearTimeout(window._csSaveTimer); wind
 // Add Load button trigger when student ID field loses focus
 document.addEventListener('DOMContentLoaded', ()=>{
   initFirebase();
-  const idField = document.getElementById('iId');
+  const idField   = document.getElementById('iId');
   const nameField = document.getElementById('iName');
-  if(idField) idField.addEventListener('blur', cloudLoad);
-  if(nameField) nameField.addEventListener('blur', ()=>{ if(!document.getElementById('iId')?.value) cloudLoad(); });
+  const secField  = document.getElementById('iSec');
+  // When student enters ID and clicks away → try to load their saved work
+  if(idField) idField.addEventListener('blur', ()=>{
+    setTimeout(cloudLoad, 300); // small delay so value is committed
+  });
+  // When name/section changes → save immediately (captures name early)
+  if(nameField) nameField.addEventListener('blur', ()=> setTimeout(cloudSave, 500));
+  if(secField)  secField.addEventListener('change', ()=> setTimeout(cloudSave, 500));
 });
 
 </script>
