@@ -6783,122 +6783,124 @@ async function generateReport(){
   const btn = document.getElementById('genReportBtn');
   const printBtn = document.getElementById('printReportBtn');
   const output = document.getElementById('reportOutput');
-  if(btn){ btn.disabled=true; btn.textContent='⏳ Capturing designs...'; }
+  if(btn){ btn.disabled=true; btn.textContent='⏳ Generating...'; }
+  output.innerHTML='<div style="text-align:center;padding:3rem;"><div style="font-size:2rem;">📸</div><div style="font-weight:600;color:var(--navy);margin-top:.5rem;">Generating report...</div></div>';
 
-  // Restore panel visibility — return to single-active-panel mode
-  allPanels.forEach(p=>{
-    p.style.display = '';
-    p.style.position = '';
-    p.style.left = '';
-    p.style.top = '';
-    p.style.width = '';
-    if(p.dataset._wasActive !== '1') p.classList.remove('active');
-    delete p.dataset._wasActive;
-  });
-
-  output.innerHTML='<div style="text-align:center;padding:3rem;"><div style="font-size:2rem;">📸</div><div style="font-weight:600;color:var(--navy);margin-top:.5rem;">Capturing all designs...</div><div style="font-size:.8rem;color:var(--g400);">This may take 15–30 seconds</div></div>';
-
-  const student = document.getElementById('iName')?.value||'[Name not entered]';
-  const section = document.getElementById('iSec')?.value||'[Section not selected]';
+  const student = document.getElementById('iName')?.value || '[Name not entered]';
+  const section = document.getElementById('iSec')?.value || '[Section not selected]';
   const date    = new Date().toLocaleDateString('en-US',{year:'numeric',month:'long',day:'numeric'});
-  const ex_names = ['Exercise 1 — Flyer Redesign','Exercise 2 — Cover Page Design',
-                    'Exercise 3 — Infographic','Exercise 4 — Newsletter Redesign','Exercise 5 — Activity Poster'];
+  const ex_names  = ['Exercise 1 — Flyer Redesign','Exercise 2 — Cover Page','Exercise 3 — Infographic','Exercise 4 — Newsletter Redesign','Exercise 5 — Activity Poster'];
   const ex_stages = ['flyerStage','coverStage','infoStage','nlStage','posterStage'];
   const ex_refs   = ['flyerRef','coverRef','infoRef','nlRef','posterRef'];
-
-  // Determine which exercises to include
-  const exToReport = selectedExercises.length===3 ? selectedExercises : [0,1,2,3,4];
+  const exToReport = (selectedExercises && selectedExercises.length>0) ? [...selectedExercises].sort() : [0,1,2,3,4];
 
   let html = `
   <div id="printableReport" style="font-family:Arial,sans-serif;max-width:100%;background:#fff;">
-    <div style="background:#1F3864;color:#fff;padding:1.5rem 2rem;display:flex;justify-content:space-between;align-items:flex-end;flex-wrap:wrap;gap:.5rem;">
-      <div>
-        <div style="font-size:.6rem;color:#C9A84C;text-transform:uppercase;letter-spacing:.12em;margin-bottom:.3rem;">University of Puerto Rico, Arecibo</div>
-        <div style="font-size:.6rem;color:#C9A84C;text-transform:uppercase;letter-spacing:.12em;">INGL 3015 — English for Science and Technology</div>
-        <div style="font-size:1.4rem;font-weight:800;margin-top:.4rem;">Document Design Project</div>
-        <div style="font-size:.75rem;color:rgba(255,255,255,.65);margin-top:.2rem;">Instructor: Dra. G. Torres Santiago</div>
-      </div>
-      <div style="text-align:right;font-size:.78rem;">
-        <div style="color:#C9A84C;font-weight:700;font-size:1rem;">${student}</div>
-        <div style="color:rgba(255,255,255,.7);">Section: ${section}</div>
-        <div style="color:rgba(255,255,255,.5);">${date}</div>
-        <div style="color:rgba(255,255,255,.5);margin-top:.2rem;">Exercises: ${exToReport.map(i=>i+1).join(', ')}</div>
+    <div style="background:#1F3864;color:#fff;padding:1.5rem 2rem;">
+      <div style="font-size:.62rem;color:#C9A84C;text-transform:uppercase;letter-spacing:.12em;">University of Puerto Rico, Arecibo · INGL 3015</div>
+      <div style="font-size:1.4rem;font-weight:800;margin-top:.4rem;">Document Design Project Report</div>
+      <div style="font-size:.75rem;color:rgba(255,255,255,.65);margin-top:.2rem;">Instructor: Dra. G. Torres Santiago</div>
+      <div style="margin-top:.6rem;font-size:.85rem;">
+        <strong style="color:#C9A84C;">${student}</strong>
+        <span style="color:rgba(255,255,255,.7);"> · Section ${section} · ${date}</span>
       </div>
     </div>
     <div style="height:4px;background:linear-gradient(90deg,#C9A84C,#e8c96a);"></div>`;
 
-  // Save which panel is currently active so we can restore it
-  const currentlyActive = document.querySelector('.ex-panel.active');
-  // Make ALL ex-panels visible temporarily for html2canvas to capture them
-  let allPanels = [];
-  try {
-    allPanels = document.querySelectorAll('.ex-panel');
-    allPanels.forEach(p=>{
-      p.dataset._wasActive = p.classList.contains('active') ? '1' : '0';
-      p.style.display = 'block';
-      p.style.position = 'absolute';
-      p.style.left = '-99999px';
-      p.style.top = '0';
-      p.style.width = '900px';
-    });
-    await new Promise(r=>setTimeout(r, 500)); // wait for DOM to render
-  } catch(panelErr){
-    console.error('Panel reveal error:', panelErr);
-  }
+  // Remember which panel is active
+  const wasActive = document.querySelector('.ex-panel.active');
 
-  for(const i of exToReport){
-    const stage   = document.getElementById(ex_stages[i]);
-    const refTxt  = document.getElementById(ex_refs[i])?.value || '[No reflection provided]';
+  console.log('Report loop: capturing exercises', exToReport);
+
+  for(let idx=0; idx<exToReport.length; idx++){
+    const i = exToReport[idx];
+    const stageId = ex_stages[i];
+    const stage = document.getElementById(stageId);
+    const refTxt = document.getElementById(ex_refs[i])?.value || '[No reflection provided]';
     let imgSrc = '';
-    try{
+
+    console.log(`📸 [${idx+1}/${exToReport.length}] Capturing exercise ${i}: ${stageId}`);
+    if(btn) btn.textContent = `⏳ Capturing ${idx+1}/${exToReport.length}...`;
+
+    // Switch to this exercise's panel
+    document.querySelectorAll('.ex-panel').forEach(p => {
+      p.classList.remove('active');
+      p.style.display = 'none';
+    });
+    const targetPanel = document.getElementById('ex-'+i);
+    if(targetPanel){
+      targetPanel.classList.add('active');
+      targetPanel.style.display = 'block';
+      console.log(`  Activated panel ex-${i}`);
+    } else {
+      console.error(`  ❌ Panel ex-${i} not found`);
+    }
+
+    // Wait LONG enough for full render
+    await new Promise(r => setTimeout(r, 1200));
+
+    // Verify stage is rendered
+    if(stage){
+      const rect = stage.getBoundingClientRect();
+      console.log(`  Stage ${stageId}: ${rect.width}x${rect.height}, ${stage.querySelectorAll('.cel').length} elements`);
+    }
+
+    try {
       if(stage && typeof html2canvas !== 'undefined'){
-        // Special case for infographic: capture the preview pane too
-        let target = stage;
-        if(ex_stages[i] === 'infoStage'){
-          const preview = document.getElementById('ex6Preview');
-          if(preview && preview.innerHTML.trim()){
-            // Capture canvas AND the preview side-by-side
-            target = stage;
+        const cvs = await html2canvas(stage, {
+          scale: 1.3,
+          allowTaint: true,
+          useCORS: true,
+          logging: false,
+          backgroundColor: '#ffffff',
+          onclone: (clonedDoc)=>{
+            // Force the target panel visible in cloned doc
+            const clonedPanel = clonedDoc.getElementById('ex-'+i);
+            if(clonedPanel) clonedPanel.style.display = 'block';
+            clonedDoc.querySelectorAll('.ex-panel').forEach(p=>{
+              if(p.id !== 'ex-'+i) p.style.display = 'none';
+            });
           }
-        }
-        const cvs = await html2canvas(target,{
-          scale:1.5,
-          allowTaint:true,
-          useCORS:true,
-          logging:false,
-          backgroundColor:'#ffffff',
-          width: target.scrollWidth,
-          height: target.scrollHeight,
         });
         imgSrc = cvs.toDataURL('image/png');
+        console.log(`  ✅ Captured ${stageId}: ${cvs.width}x${cvs.height}, ${Math.round(imgSrc.length/1024)}KB`);
+      } else {
+        console.warn(`  ⚠️ Stage or html2canvas unavailable`);
       }
-    } catch(err){ console.warn('Capture failed for '+ex_stages[i]+':', err); }
+    } catch(err){
+      console.error(`  ❌ Capture failed for ${stageId}:`, err);
+    }
 
     html += `
-    <div style="page-break-inside:avoid;border-bottom:2px solid #f0f0f0;padding:1.5rem 2rem;">
-      <div style="display:inline-flex;align-items:center;gap:.5rem;margin-bottom:.8rem;">
-        <span style="background:#1F3864;color:#C9A84C;font-size:.72rem;font-weight:800;padding:.3em .8em;border-radius:4px;">${ex_names[i]}</span>
-      </div>
+    <div style="border-bottom:2px solid #f0f0f0;padding:1.5rem 2rem;">
+      <div style="background:#1F3864;color:#C9A84C;font-size:.72rem;font-weight:800;padding:.3em .8em;border-radius:4px;display:inline-block;margin-bottom:.8rem;">${ex_names[i]}</div>
       ${imgSrc
-        ? `<img src="${imgSrc}" style="max-width:100%;height:auto;display:block;border-radius:4px;box-shadow:0 2px 12px rgba(0,0,0,.1);margin-bottom:.8rem;" alt="${ex_names[i]}">`
-        : `<div style="height:100px;background:#f5f5f5;border-radius:4px;display:flex;align-items:center;justify-content:center;font-size:.8rem;color:#aaa;margin-bottom:.8rem;">[Canvas screenshot unavailable — visit the exercise tab to ensure content is visible]</div>`}
+        ? `<img src="${imgSrc}" style="max-width:100%;height:auto;display:block;border:1px solid #ddd;border-radius:4px;box-shadow:0 2px 12px rgba(0,0,0,.1);margin-bottom:.8rem;">`
+        : `<div style="padding:1rem;background:#fff3e0;border-left:3px solid #e67e22;color:#666;font-size:.78rem;margin-bottom:.8rem;">⚠ Canvas screenshot could not be captured. Try clicking on this exercise tab once before generating the report.</div>`}
       <div style="font-size:.78rem;"><strong style="color:#1F3864;">Design Reflection:</strong>
-        <div style="margin-top:.3rem;padding:.6rem .8rem;background:#f8f7f2;border-radius:4px;color:#444;line-height:1.7;white-space:pre-wrap;">${refTxt.replace(/</g,'&lt;').replace(/>/g,'&gt;')}</div>
+        <div style="margin-top:.3rem;padding:.6rem .8rem;background:#f8f7f2;border-radius:4px;color:#444;line-height:1.7;white-space:pre-wrap;">${refTxt}</div>
       </div>
     </div>`;
   }
 
+  // Restore original active panel
+  document.querySelectorAll('.ex-panel').forEach(p => p.classList.remove('active'));
+  if(wasActive){
+    wasActive.classList.add('active');
+  } else {
+    document.getElementById('ex-report')?.classList.add('active');
+  }
+
   html += `
-    <div style="background:#1F3864;color:#fff;padding:1rem 2rem;display:flex;justify-content:space-between;flex-wrap:wrap;gap:.5rem;margin-top:1rem;">
-      <div style="font-size:.7rem;color:rgba(255,255,255,.6);">INGL 3015 · Document Design Project · University of Puerto Rico, Arecibo · Dra. G. Torres Santiago</div>
-      <div style="font-size:.7rem;color:#C9A84C;">${student} · ${section} · ${date}</div>
+    <div style="padding:1rem 2rem;background:#f8f7f2;font-size:.7rem;color:#888;text-align:center;">
+      Generated ${date} · INGL 3015 Document Design Project
     </div>
   </div>`;
 
   output.innerHTML = html;
-  if(btn){ btn.disabled=false; btn.textContent='📸 Regenerate Report'; }
-  if(printBtn) printBtn.disabled=false;
-  output.scrollIntoView({behavior:'smooth', block:'start'});
+
+  if(btn){ btn.disabled=false; btn.textContent='📄 Regenerate Report'; }
+  if(printBtn) printBtn.style.display='inline-block';
 }
 
 function sendEmail(){
@@ -7739,100 +7741,118 @@ function serializeCanvas(stageId){
 // ── Restore one canvas from saved data ──────────────────────────────
 function restoreCanvas(stageId, elements){
   if(!elements||!elements.length){ console.log('restoreCanvas '+stageId+': no elements'); return; }
-  const stage=document.getElementById(stageId);
+  const stage = document.getElementById(stageId);
   if(!stage){ console.warn('restoreCanvas '+stageId+': STAGE NOT FOUND'); return; }
   console.log('restoreCanvas '+stageId+': restoring '+elements.length+' elements...');
 
-  // Clear existing elements
-  stage.querySelectorAll('.cel,.cel-depth-shadow,.cel-pp-effect').forEach(e=>e.remove());
-  const st=getState(stageId);
+  // Clear any existing elements first
+  stage.querySelectorAll('.cel, .cel-depth-shadow, .cel-pp-effect').forEach(e=>e.remove());
+  const st = getState(stageId);
 
-  elements.forEach(data=>{
-    const el=document.createElement('div');
-    el.className='cel cel-'+(data.type||'shape');
-    el.dataset.type        = data.type||'shape';
-    el.dataset.id          = data.id||('cel_'+Math.random().toString(36).slice(2,7));
-    el.dataset.activeShape = data.activeShape||'';
-    el.dataset.rotation    = data.rotation||'0';
-    el.dataset.flipX       = data.flipX||'1';
-    el.dataset.flipY       = data.flipY||'1';
-    if(data.isStepBlock === '1'){
-      el.dataset.isStepBlock = '1';
-      el.setAttribute('data-is-step-block','1');
-    }
-
-    // Apply all saved styles
-    const s = data.styles || {};
-    Object.keys(s).forEach(prop=>{
-      if(s[prop] !== undefined && s[prop] !== '' && s[prop] !== 'normal' && s[prop] !== 'none'){
-        try { el.style[prop] = s[prop]; } catch(e){}
-      }
-    });
-
-    // Restore content (innerHTML preserves everything: text, shape parts, step circles)
-    if(data.html !== undefined){
-      el.innerHTML = data.html;
-    }
-
-    // For image elements where src was stripped, show placeholder
-    if(data.type==='image' && data.imgSrc === '__large__'){
-      el.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100%;color:#999;font-size:.72rem;text-align:center;padding:.3rem;">📷 Re-upload image</div>';
-    } else if(data.type==='image' && data.imgSrc && !el.querySelector('img')){
-      // Image src present but HTML missing img tag — rebuild
-      const img = document.createElement('img');
-      img.src = data.imgSrc;
-      img.style.cssText = 'width:100%;height:100%;object-fit:cover;display:block;pointer-events:none;';
-      el.appendChild(img);
-    }
-
+  elements.forEach((data, idx)=>{
     try {
-      setupCel(el, stageId);
-      addResizeHandles(el);
+      const el = document.createElement('div');
+      el.className = 'cel cel-' + (data.type||'shape');
+      el.dataset.type        = data.type||'shape';
+      el.dataset.id          = data.id||('cel_'+Math.random().toString(36).slice(2,7));
+      el.dataset.activeShape = data.activeShape||'';
+      el.dataset.rotation    = data.rotation||'0';
+      el.dataset.flipX       = data.flipX||'1';
+      el.dataset.flipY       = data.flipY||'1';
+      if(data.isStepBlock === '1'){
+        el.dataset.isStepBlock = '1';
+        el.setAttribute('data-is-step-block','1');
+      }
+
+      // Apply saved styles
+      const s = data.styles || {};
+      Object.keys(s).forEach(prop=>{
+        const val = s[prop];
+        if(val !== undefined && val !== '' && val !== 'normal' && val !== 'none' && val !== '0px'){
+          try { el.style[prop] = val; } catch(e){}
+        }
+      });
+
+      // Ensure absolute positioning is set (in case it was lost)
+      if(!el.style.position) el.style.position = 'absolute';
+      if(!el.style.left) el.style.left = (20 + idx*20)+'px';
+      if(!el.style.top)  el.style.top  = (20 + idx*20)+'px';
+
+      // For image elements: rebuild the img tag from imgSrc
+      if(data.type === 'image'){
+        if(data.imgSrc && data.imgSrc !== '__large__'){
+          const img = document.createElement('img');
+          img.src = data.imgSrc;
+          img.style.cssText = 'width:100%;height:100%;object-fit:cover;display:block;pointer-events:none;';
+          el.appendChild(img);
+        } else if(data.imgSrc === '__large__'){
+          el.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100%;color:#999;font-size:.72rem;text-align:center;padding:.3rem;">📷 Re-upload image</div>';
+        } else if(data.html){
+          el.innerHTML = data.html;
+        }
+      } else {
+        // Shapes, text, step blocks — restore from innerHTML
+        if(data.html !== undefined){
+          el.innerHTML = data.html;
+        }
+      }
+
+      // Setup interactions
+      try {
+        setupCel(el, stageId);
+        addResizeHandles(el);
+      } catch(setupErr){
+        console.error('setupCel failed:', setupErr);
+      }
+
       stage.appendChild(el);
-    } catch(setupErr){
-      console.error('❌ setupCel failed for element:', data, setupErr);
-    }
 
-    // Re-attach step block circle dblclick handler if it's a step block
-    if(data.isStepBlock === '1'){
-      const circle = el.querySelector('.step-circle');
-      if(circle){
-        circle.addEventListener('dblclick', function(ev){
-          ev.stopPropagation();
-          circle.contentEditable='true';
-          circle.style.cursor='text';
-          circle.focus();
-          const range=document.createRange();
-          range.selectNodeContents(circle);
-          const sel=window.getSelection();
-          sel.removeAllRanges(); sel.addRange(range);
-        });
-        circle.addEventListener('blur', function(){
-          circle.contentEditable='false';
-          circle.style.cursor='pointer';
-        });
+      // Re-attach step block handlers if needed
+      if(data.isStepBlock === '1'){
+        const circle = el.querySelector('.step-circle');
+        if(circle && !circle._handlersAttached){
+          circle._handlersAttached = true;
+          circle.addEventListener('dblclick', function(ev){
+            ev.stopPropagation();
+            circle.contentEditable='true';
+            circle.style.cursor='text';
+            circle.focus();
+            const range=document.createRange();
+            range.selectNodeContents(circle);
+            const sel=window.getSelection();
+            sel.removeAllRanges(); sel.addRange(range);
+          });
+          circle.addEventListener('blur', function(){
+            circle.contentEditable='false';
+            circle.style.cursor='pointer';
+          });
+        }
+        const txt = el.querySelector('.step-text');
+        if(txt && !txt._handlersAttached){
+          txt._handlersAttached = true;
+          txt.addEventListener('dblclick', function(ev){
+            ev.stopPropagation();
+            txt.contentEditable='true';
+            txt.style.cursor='text';
+            txt.focus();
+          });
+          txt.addEventListener('blur', function(){
+            txt.contentEditable='false';
+            txt.style.cursor='';
+          });
+        }
       }
-      // Re-attach text dblclick
-      const txt = el.querySelector('.step-text');
-      if(txt){
-        txt.addEventListener('dblclick', function(ev){
-          ev.stopPropagation();
-          txt.contentEditable='true';
-          txt.style.cursor='text';
-          txt.focus();
-        });
-        txt.addEventListener('blur', function(){
-          txt.contentEditable='false';
-          txt.style.cursor='';
-        });
-      }
-    }
 
-    const n = parseInt((data.id||'').replace(/\D/g,''))||0;
-    if(st && n >= st.nextId) st.nextId = n + 1;
+      const n = parseInt((data.id||'').replace(/\D/g,''))||0;
+      if(st && n >= st.nextId) st.nextId = n + 1;
+
+    } catch(elErr){
+      console.error('Failed to restore element #'+idx+':', elErr, data);
+    }
   });
 
-  console.log('restoreCanvas '+stageId+': ✓ done');
+  const actualCount = stage.querySelectorAll('.cel').length;
+  console.log('restoreCanvas '+stageId+': ✓ '+actualCount+'/'+elements.length+' elements visible');
 }
 // ════════════════════════════════════════════════════════════════════
 //  FIREBASE CLOUD SAVE  — uses Firestore REST API (no SDK required)
@@ -7864,9 +7884,12 @@ async function cloudSave(){
     let totalEls = 0;
     ['flyerStage','coverStage','infoStage','nlStage','posterStage'].forEach(id=>{
       const stage = document.getElementById(id);
-      const els = stage ? Array.from(stage.querySelectorAll('.cel')) : [];
+      if(!stage){ console.warn('  ⚠️ NO STAGE for '+id); canvases[id]=[]; return; }
+      const els = Array.from(stage.querySelectorAll('.cel'));
+      console.log(`  [SERIALIZE] ${id}: found ${els.length} .cel elements in DOM`);
       totalEls += els.length;
-      canvases[id] = els.map(el => {
+      canvases[id] = els.map((el, idx) => {
+        try {
         const obj = {
           type:        el.dataset.type || 'shape',
           id:          el.dataset.id   || '',
@@ -7912,12 +7935,16 @@ async function cloudSave(){
         if(el.dataset.type==='image'){
           const img=el.querySelector('img');
           if(img){
-            obj.imgSrc = (img.src.startsWith('data:') && img.src.length > 200000)
-              ? '__large__' : img.src;
+            obj.imgSrc = img.src;  // keep full image — compression will handle size
           }
         }
         return obj;
+        } catch(serErr){
+          console.error(`  ❌ SERIALIZATION FAILED for element ${idx} in ${id}:`, serErr);
+          return {type:'shape', id:'cel_err', styles:{}, html:''};
+        }
       });
+      console.log(`  [SERIALIZE] ${id}: serialized ${canvases[id].length} elements`);
     });
 
     console.log(`📊 Cloud Save Diagnostic:`);
