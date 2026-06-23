@@ -5852,26 +5852,7 @@ function applySwatchTo(stageId, color){
 // ══════════════════════════════════════════════
 // generateReport moved
 
-function printReport(){
-  const reportContent = document.getElementById('printableReport');
-  if(!reportContent){ alert('Please generate the report first.'); return; }
-  const win = window.open('','_blank','width=900,height=700');
-  win.document.write(`<!DOCTYPE html><html><head><title>INGL 3015 Document Design Project</title>
-  <style>
-    body{margin:0;padding:0;font-family:Arial,sans-serif;}
-    @page{margin:0.5in;}
-    @media print{
-      .no-print{display:none!important;}
-      body{-webkit-print-color-adjust:exact;print-color-adjust:exact;}
-      div{page-break-inside:avoid;}
-    }
-  </style></head><body>`);
-  win.document.write(reportContent.outerHTML);
-  win.document.write('</body></html>');
-  win.document.close();
-  win.focus();
-  setTimeout(()=>win.print(), 800);
-}
+
 
 // ══════════════════════════════════════════════
 // INFOGRAPHIC SPECIAL ELEMENTS
@@ -6791,33 +6772,51 @@ async function generateReport(){
   const printBtn = document.getElementById('printReportBtn');
   const output = document.getElementById('reportOutput');
   if(btn){ btn.disabled=true; btn.textContent='⏳ Generating...'; }
-  output.innerHTML='<div style="text-align:center;padding:3rem;"><div style="font-size:2rem;">📸</div><div style="font-weight:600;color:var(--navy);margin-top:.5rem;">Generating report...</div></div>';
+  output.innerHTML='<div style="text-align:center;padding:3rem;"><div style="font-size:2rem;">📸</div><div style="font-weight:600;color:var(--navy);margin-top:.5rem;">Generating report...</div><div style="font-size:.8rem;color:var(--g400);margin-top:.4rem;">This may take 15–30 seconds</div></div>';
 
   const student = document.getElementById('iName')?.value || '[Name not entered]';
   const section = document.getElementById('iSec')?.value || '[Section not selected]';
+  const studId  = document.getElementById('iId')?.value || '';
   const date    = new Date().toLocaleDateString('en-US',{year:'numeric',month:'long',day:'numeric'});
-  const ex_names  = ['Exercise 1 — Flyer Redesign','Exercise 2 — Cover Page','Exercise 3 — Infographic','Exercise 4 — Newsletter Redesign','Exercise 5 — Activity Poster'];
+  const ex_names  = ['Exercise 1 — Flyer Redesign','Exercise 2 — Cover Page Design','Exercise 3 — Infographic','Exercise 4 — Newsletter Redesign','Exercise 5 — Activity Poster'];
   const ex_stages = ['flyerStage','coverStage','infoStage','nlStage','posterStage'];
   const ex_refs   = ['flyerRef','coverRef','infoRef','nlRef','posterRef'];
   const exToReport = (selectedExercises && selectedExercises.length>0) ? [...selectedExercises].sort() : [0,1,2,3,4];
 
+  // REMEMBER the current panel so we can restore navigation
+  const previousActivePanelId = document.querySelector('.ex-panel.active')?.id || 'ex-5';
+  console.log('Will restore to panel:', previousActivePanelId);
+
+  // ─── COVER PAGE HTML ────────────────────────────────────────────────
   let html = `
-  <div id="printableReport" style="font-family:Arial,sans-serif;max-width:100%;background:#fff;">
-    <div style="background:#1F3864;color:#fff;padding:1.5rem 2rem;">
-      <div style="font-size:.62rem;color:#C9A84C;text-transform:uppercase;letter-spacing:.12em;">University of Puerto Rico, Arecibo · INGL 3015</div>
-      <div style="font-size:1.4rem;font-weight:800;margin-top:.4rem;">Document Design Project Report</div>
-      <div style="font-size:.75rem;color:rgba(255,255,255,.65);margin-top:.2rem;">Instructor: Dra. G. Torres Santiago</div>
-      <div style="margin-top:.6rem;font-size:.85rem;">
-        <strong style="color:#C9A84C;">${student}</strong>
-        <span style="color:rgba(255,255,255,.7);"> · Section ${section} · ${date}</span>
+  <div id="printableReport" style="font-family:Arial,sans-serif;max-width:100%;background:#fff;color:#222;">
+
+    <!-- COVER PAGE -->
+    <div style="page-break-after:always;min-height:90vh;display:flex;flex-direction:column;justify-content:center;padding:3rem 2rem;background:linear-gradient(135deg,#1F3864 0%,#2a4d8f 100%);color:#fff;">
+      <div style="text-align:center;">
+        <div style="font-size:.7rem;color:#C9A84C;text-transform:uppercase;letter-spacing:.2em;margin-bottom:1rem;">University of Puerto Rico, Arecibo</div>
+        <div style="font-size:.85rem;color:#C9A84C;text-transform:uppercase;letter-spacing:.16em;margin-bottom:2rem;">INGL 3015 — English for Science and Technology</div>
+        <div style="height:2px;width:120px;background:#C9A84C;margin:1.5rem auto;"></div>
+        <h1 style="font-size:2.4rem;font-weight:800;letter-spacing:-.01em;margin-bottom:.8rem;line-height:1.1;">Document Design</h1>
+        <h2 style="font-size:1.6rem;font-weight:300;color:#e8c96a;font-style:italic;margin-bottom:3rem;">Creative Project Report</h2>
+
+        <div style="background:rgba(255,255,255,.08);border-radius:8px;padding:1.5rem 2rem;margin:2rem auto;max-width:480px;backdrop-filter:blur(10px);">
+          <div style="font-size:.7rem;color:rgba(255,255,255,.55);text-transform:uppercase;letter-spacing:.12em;margin-bottom:.4rem;">Submitted by</div>
+          <div style="font-size:1.5rem;font-weight:700;color:#fff;margin-bottom:.6rem;">${student}</div>
+          ${studId ? `<div style="font-size:.85rem;color:rgba(255,255,255,.7);">Student ID: ${studId}</div>`:''}
+          <div style="font-size:.85rem;color:rgba(255,255,255,.7);">Section: ${section}</div>
+          <div style="font-size:.85rem;color:rgba(255,255,255,.7);margin-top:.4rem;">${date}</div>
+        </div>
+
+        <div style="font-size:.78rem;color:rgba(255,255,255,.55);margin-top:2rem;">
+          Instructor: Dra. Geissa R. Torres Santiago<br>
+          Exercises completed: ${exToReport.map(i=>i+1).join(', ')} of 5
+        </div>
       </div>
-    </div>
-    <div style="height:4px;background:linear-gradient(90deg,#C9A84C,#e8c96a);"></div>`;
+    </div>`;
 
-  // Remember which panel is active
-  const wasActive = document.querySelector('.ex-panel.active');
-
-  console.log('Report loop: capturing exercises', exToReport);
+  // ─── CAPTURE EACH EXERCISE ──────────────────────────────────────────
+  console.log('Capturing exercises:', exToReport);
 
   for(let idx=0; idx<exToReport.length; idx++){
     const i = exToReport[idx];
@@ -6826,10 +6825,10 @@ async function generateReport(){
     const refTxt = document.getElementById(ex_refs[i])?.value || '[No reflection provided]';
     let imgSrc = '';
 
-    console.log(`📸 [${idx+1}/${exToReport.length}] Capturing exercise ${i}: ${stageId}`);
+    console.log(`📸 [${idx+1}/${exToReport.length}] Capturing ${stageId}`);
     if(btn) btn.textContent = `⏳ Capturing ${idx+1}/${exToReport.length}...`;
 
-    // Switch to this exercise's panel
+    // Make ONLY this exercise's panel visible
     document.querySelectorAll('.ex-panel').forEach(p => {
       p.classList.remove('active');
       p.style.display = 'none';
@@ -6838,18 +6837,14 @@ async function generateReport(){
     if(targetPanel){
       targetPanel.classList.add('active');
       targetPanel.style.display = 'block';
-      console.log(`  Activated panel ex-${i}`);
-    } else {
-      console.error(`  ❌ Panel ex-${i} not found`);
     }
-
-    // Wait LONG enough for full render
+    // Wait for full render
     await new Promise(r => setTimeout(r, 1200));
 
-    // Verify stage is rendered
+    // Verify stage rendered
     if(stage){
       const rect = stage.getBoundingClientRect();
-      console.log(`  Stage ${stageId}: ${rect.width}x${rect.height}, ${stage.querySelectorAll('.cel').length} elements`);
+      console.log(`  ${stageId}: ${rect.width}x${rect.height}, ${stage.querySelectorAll('.cel').length} elements`);
     }
 
     try {
@@ -6860,54 +6855,99 @@ async function generateReport(){
           useCORS: true,
           logging: false,
           backgroundColor: '#ffffff',
-          onclone: (clonedDoc)=>{
-            // Force the target panel visible in cloned doc
-            const clonedPanel = clonedDoc.getElementById('ex-'+i);
-            if(clonedPanel) clonedPanel.style.display = 'block';
-            clonedDoc.querySelectorAll('.ex-panel').forEach(p=>{
-              if(p.id !== 'ex-'+i) p.style.display = 'none';
-            });
+          onclone: (clonedDoc) => {
+            clonedDoc.querySelectorAll('.ex-panel').forEach(p => p.style.display = 'none');
+            const cp = clonedDoc.getElementById('ex-'+i);
+            if(cp) cp.style.display = 'block';
           }
         });
         imgSrc = cvs.toDataURL('image/png');
-        console.log(`  ✅ Captured ${stageId}: ${cvs.width}x${cvs.height}, ${Math.round(imgSrc.length/1024)}KB`);
-      } else {
-        console.warn(`  ⚠️ Stage or html2canvas unavailable`);
+        console.log(`  ✅ Captured: ${cvs.width}x${cvs.height}`);
       }
-    } catch(err){
-      console.error(`  ❌ Capture failed for ${stageId}:`, err);
+    } catch(err) {
+      console.error(`  ❌ Failed:`, err);
     }
 
+    // ─── EXERCISE PAGE HTML ─────────────────────────────────────────
     html += `
-    <div style="border-bottom:2px solid #f0f0f0;padding:1.5rem 2rem;">
-      <div style="background:#1F3864;color:#C9A84C;font-size:.72rem;font-weight:800;padding:.3em .8em;border-radius:4px;display:inline-block;margin-bottom:.8rem;">${ex_names[i]}</div>
+    <div style="page-break-before:always;page-break-after:always;padding:2rem;min-height:90vh;">
+      <div style="border-bottom:3px solid #C9A84C;padding-bottom:.8rem;margin-bottom:1.5rem;">
+        <div style="font-size:.65rem;color:#C9A84C;text-transform:uppercase;letter-spacing:.12em;font-weight:700;">Exercise ${i+1}</div>
+        <h2 style="font-size:1.4rem;color:#1F3864;margin-top:.3rem;font-weight:800;">${ex_names[i]}</h2>
+      </div>
+
       ${imgSrc
-        ? `<img src="${imgSrc}" style="max-width:100%;height:auto;display:block;border:1px solid #ddd;border-radius:4px;box-shadow:0 2px 12px rgba(0,0,0,.1);margin-bottom:.8rem;">`
-        : `<div style="padding:1rem;background:#fff3e0;border-left:3px solid #e67e22;color:#666;font-size:.78rem;margin-bottom:.8rem;">⚠ Canvas screenshot could not be captured. Try clicking on this exercise tab once before generating the report.</div>`}
-      <div style="font-size:.78rem;"><strong style="color:#1F3864;">Design Reflection:</strong>
-        <div style="margin-top:.3rem;padding:.6rem .8rem;background:#f8f7f2;border-radius:4px;color:#444;line-height:1.7;white-space:pre-wrap;">${refTxt}</div>
+        ? `<div style="text-align:center;margin-bottom:1.5rem;">
+             <img src="${imgSrc}" style="max-width:100%;max-height:520px;height:auto;border:1px solid #ddd;border-radius:6px;box-shadow:0 4px 20px rgba(0,0,0,.12);">
+             <div style="font-size:.7rem;color:#999;margin-top:.4rem;font-style:italic;">Student Design — ${ex_names[i]}</div>
+           </div>`
+        : `<div style="padding:2rem;background:#fff3e0;border-left:4px solid #e67e22;color:#666;font-size:.85rem;border-radius:4px;margin-bottom:1.5rem;">⚠ The canvas screenshot could not be captured for this exercise. The student may have left the canvas empty.</div>`}
+
+      <div style="background:#f8f7f2;border-radius:6px;padding:1rem 1.2rem;border-left:4px solid #1F3864;">
+        <div style="font-size:.7rem;color:#1F3864;text-transform:uppercase;letter-spacing:.1em;font-weight:700;margin-bottom:.4rem;">Design Reflection</div>
+        <div style="font-size:.88rem;line-height:1.7;color:#444;white-space:pre-wrap;">${refTxt}</div>
       </div>
     </div>`;
   }
 
-  // Restore original active panel
-  document.querySelectorAll('.ex-panel').forEach(p => p.classList.remove('active'));
-  if(wasActive){
-    wasActive.classList.add('active');
-  } else {
-    document.getElementById('ex-report')?.classList.add('active');
-  }
-
+  // ─── FINAL PAGE / FOOTER ────────────────────────────────────────────
   html += `
-    <div style="padding:1rem 2rem;background:#f8f7f2;font-size:.7rem;color:#888;text-align:center;">
-      Generated ${date} · INGL 3015 Document Design Project
+    <div style="padding:1.5rem 2rem;background:#f8f7f2;text-align:center;font-size:.72rem;color:#888;border-top:2px solid #C9A84C;">
+      Report generated ${date}<br>
+      INGL 3015 — Document Design Creative Project<br>
+      University of Puerto Rico, Arecibo
     </div>
   </div>`;
 
-  output.innerHTML = html;
+  // ─── RESTORE NAVIGATION ─────────────────────────────────────────────
+  document.querySelectorAll('.ex-panel').forEach(p => {
+    p.classList.remove('active');
+    p.style.display = '';   // remove inline display so CSS rules apply
+  });
+  const restorePanel = document.getElementById(previousActivePanelId);
+  if(restorePanel){
+    restorePanel.classList.add('active');
+    console.log('Restored navigation to:', previousActivePanelId);
+  }
+  // Re-mark the Report nav button as active
+  document.querySelectorAll('.ex-btn').forEach(b => b.classList.remove('active'));
+  const reportNavBtn = document.querySelector('[onclick="goEx(5,this)"]');
+  if(reportNavBtn) reportNavBtn.classList.add('active');
 
+  // ─── DISPLAY REPORT + ENABLE PRINT ──────────────────────────────────
+  output.innerHTML = html;
   if(btn){ btn.disabled=false; btn.textContent='📄 Regenerate Report'; }
-  if(printBtn) printBtn.style.display='inline-block';
+  if(printBtn){
+    printBtn.disabled = false;
+    printBtn.style.display = 'inline-block';
+  }
+
+  // Scroll back to the top of the report area
+  output.scrollIntoView({behavior:'smooth', block:'start'});
+}
+
+// Print/Save as PDF helper
+function printReport(){
+  const reportEl = document.getElementById('printableReport');
+  if(!reportEl){
+    alert('Please generate the report first.');
+    return;
+  }
+  // Open a new window with just the report for clean printing
+  const w = window.open('', '_blank');
+  w.document.write(`<!DOCTYPE html><html><head><title>INGL 3015 Report</title>
+    <style>
+      @page { margin:0; size:letter; }
+      body { margin:0; font-family:Arial,sans-serif; }
+      @media print {
+        body { -webkit-print-color-adjust:exact; print-color-adjust:exact; }
+      }
+    </style></head><body>${reportEl.outerHTML}</body></html>`);
+  w.document.close();
+  setTimeout(()=>{
+    w.focus();
+    w.print();
+  }, 500);
 }
 
 function sendEmail(){
