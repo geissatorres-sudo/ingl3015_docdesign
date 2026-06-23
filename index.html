@@ -6417,6 +6417,13 @@ function changeSelection(){
 
 // Block all exercise tabs until student makes selection
 function applyTabBlocking(){
+  // Ensure Report tab is ALWAYS clickable
+  const reportBtn = document.querySelector('[onclick="goEx(5,this)"]');
+  if(reportBtn){
+    reportBtn.style.opacity = '1';
+    reportBtn.style.pointerEvents = 'auto';
+    reportBtn.disabled = false;
+  }
   [0,1,2,3,4].forEach(i=>{
     const btn = document.querySelector(`[onclick="goEx(${i},this)"]`);
     if(!btn) return;
