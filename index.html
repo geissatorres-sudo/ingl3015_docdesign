@@ -5400,7 +5400,14 @@ function buildInstructions(){
     html+=`<div style="margin-top:1rem;text-align:center;"><img src="${ex6Img}" style="max-width:100%;max-height:220px;border-radius:6px;box-shadow:0 2px 8px rgba(0,0,0,.1);"><p style="font-size:.72rem;font-style:italic;color:#666;margin-top:.3rem;">${cap}</p></div>`;
   }
 
-  document.getElementById('ex6Preview').innerHTML=html;
+  const pv = document.getElementById('ex6Preview');
+  pv.innerHTML = html;
+  // Remove display:none from inline style attribute fully and add display:block
+  pv.style.display = 'block';
+  pv.style.visibility = 'visible';
+  pv.removeAttribute('hidden');
+  pv.scrollIntoView({behavior:'smooth', block:'nearest'});
+  console.log('Preview shown with', numbered.length, 'numbered steps');
   if(numbered.length>=8) markDone(5);
 }
 
@@ -5874,41 +5881,100 @@ function addInfoBlock(stageId){
   const stage = document.getElementById(stageId);
   if(!stage){ console.error('Stage not found:', stageId); return; }
   const n = st.nextId++;
-  const stepNum = (n % 12) || 1;
+  // Count existing step blocks to get the NEXT sequence number
+  const existing = stage.querySelectorAll('[data-is-step-block="1"]').length;
+  const stepNum = existing + 1;
+
+  // Get next available step text from the numbered preview
+  let stepText = 'Double-click to edit this step text';
+  let actualNum = stepNum;  // will use this for the gold circle
+  const pv = document.getElementById('ex6Preview');
+  if(pv && pv.innerHTML.trim()){
+    // Get all numbered items from preview in order
+    const allSteps = [];
+    pv.querySelectorAll('p').forEach(p=>{
+      const strong = p.querySelector('strong');
+      if(!strong) return;
+      const num = parseInt(strong.textContent);
+      if(isNaN(num)) return;
+      const clone = p.cloneNode(true);
+      clone.querySelector('strong')?.remove();
+      const txt = clone.textContent.trim().replace(/^\.\s*/,'');
+      allSteps.push({num, text:txt});
+    });
+    allSteps.sort((a,b)=>a.num-b.num);
+
+    // Pick the Nth step in order (existing count = index of next one)
+    if(allSteps[existing]){
+      stepText = allSteps[existing].text;
+      actualNum = allSteps[existing].num;
+    }
+    console.log('Step block', existing+1, '→ using preview step #', actualNum);
+  } else {
+    console.log('No preview content found — using default text');
+  }
 
   const el = document.createElement('div');
   el.className = 'cel cel-shape';
   el.dataset.id = 'cel_' + n;
   el.dataset.type = 'shape';
-  // Important: position:absolute comes from .cel class
+  el.dataset.isStepBlock = '1';
+  el.setAttribute('data-is-step-block','1'); // makes it queryable
   el.style.left = '20px';
   el.style.top  = (20 + n * 14) + 'px';
   el.style.width = '420px';
-  el.style.height = '52px';
+  el.style.height = '60px';
   el.style.background = '#1F3864';
   el.style.borderRadius = '6px';
   el.style.display = 'flex';
   el.style.alignItems = 'center';
   el.style.padding = '0 14px';
   el.style.gap = '10px';
+  el.style.fontFamily = 'Arial, sans-serif';
+  el.style.fontSize = '13px';
+  el.style.color = '#ffffff';
 
-  // Gold circle with step number
   const circle = document.createElement('div');
-  circle.style.cssText = 'width:28px;height:28px;background:#C9A84C;border-radius:50%;display:flex;align-items:center;justify-content:center;font-family:Arial,sans-serif;font-size:14px;font-weight:800;color:#1F3864;flex-shrink:0;pointer-events:none;';
-  circle.textContent = stepNum;
+  circle.className = 'step-circle';
+  circle.style.cssText = 'width:30px;height:30px;background:#C9A84C;border-radius:50%;display:flex;align-items:center;justify-content:center;font-family:Arial,sans-serif;font-size:15px;font-weight:800;color:#1F3864;flex-shrink:0;cursor:pointer;';
+  circle.textContent = actualNum;
+  circle.title = 'Double-click to edit number';
+  circle.addEventListener('dblclick', function(ev){
+    ev.stopPropagation();
+    circle.contentEditable = 'true';
+    circle.style.cursor = 'text';
+    circle.focus();
+    const range = document.createRange();
+    range.selectNodeContents(circle);
+    const sel = window.getSelection();
+    sel.removeAllRanges();
+    sel.addRange(range);
+  });
+  circle.addEventListener('blur', function(){
+    circle.contentEditable = 'false';
+    circle.style.cursor = 'pointer';
+    // Re-center the number (override any alignment changes)
+    circle.style.textAlign = 'center';
+    circle.style.display = 'flex';
+    circle.style.alignItems = 'center';
+    circle.style.justifyContent = 'center';
+  });
+  circle.addEventListener('mousedown', function(ev){
+    if(circle.contentEditable === 'true') ev.stopPropagation();
+  });
 
-  // Editable text
+  // Editable text — uses parent's font properties so Properties Panel works
   const txt = document.createElement('div');
-  txt.style.cssText = 'flex:1;color:#fff;font-family:Arial,sans-serif;font-size:12px;line-height:1.35;word-break:break-word;pointer-events:auto;';
+  txt.className = 'step-text';
+  txt.style.cssText = 'flex:1;color:inherit;font-family:inherit;font-size:inherit;font-weight:inherit;font-style:inherit;line-height:1.4;word-break:break-word;pointer-events:auto;text-align:left;';
   txt.contentEditable = 'false';
-  txt.textContent = 'Step ' + stepNum + ' — double-click to edit this text';
+  txt.textContent = stepText;
 
   txt.addEventListener('dblclick', function(ev){
     ev.stopPropagation();
     txt.contentEditable = 'true';
     txt.style.cursor = 'text';
     txt.focus();
-    // place cursor at end
     const range = document.createRange();
     range.selectNodeContents(txt);
     range.collapse(false);
@@ -6406,7 +6472,9 @@ function startProject(){
 }
 
 function goEx(n, btn){
-  // Save before switching tabs (captures any canvas work)
+  // Block navigation to unselected exercises (numbers only — instructions/report always open)
+  // Note: Tab blocking removed for restored sessions to prevent lockouts.
+  // The visual greyed-out state still discourages navigation to unselected tabs.
   setTimeout(cloudSave, 800);
   document.querySelectorAll('.ex-panel').forEach(p => p.classList.remove('active'));
   document.querySelectorAll('.ex-btn').forEach(b => b.classList.remove('active'));
@@ -6716,6 +6784,18 @@ async function generateReport(){
   const printBtn = document.getElementById('printReportBtn');
   const output = document.getElementById('reportOutput');
   if(btn){ btn.disabled=true; btn.textContent='⏳ Capturing designs...'; }
+
+  // Restore panel visibility — return to single-active-panel mode
+  allPanels.forEach(p=>{
+    p.style.display = '';
+    p.style.position = '';
+    p.style.left = '';
+    p.style.top = '';
+    p.style.width = '';
+    if(p.dataset._wasActive !== '1') p.classList.remove('active');
+    delete p.dataset._wasActive;
+  });
+
   output.innerHTML='<div style="text-align:center;padding:3rem;"><div style="font-size:2rem;">📸</div><div style="font-weight:600;color:var(--navy);margin-top:.5rem;">Capturing all designs...</div><div style="font-size:.8rem;color:var(--g400);">This may take 15–30 seconds</div></div>';
 
   const student = document.getElementById('iName')?.value||'[Name not entered]';
@@ -6747,16 +6827,52 @@ async function generateReport(){
     </div>
     <div style="height:4px;background:linear-gradient(90deg,#C9A84C,#e8c96a);"></div>`;
 
+  // Save which panel is currently active so we can restore it
+  const currentlyActive = document.querySelector('.ex-panel.active');
+  // Make ALL ex-panels visible temporarily for html2canvas to capture them
+  let allPanels = [];
+  try {
+    allPanels = document.querySelectorAll('.ex-panel');
+    allPanels.forEach(p=>{
+      p.dataset._wasActive = p.classList.contains('active') ? '1' : '0';
+      p.style.display = 'block';
+      p.style.position = 'absolute';
+      p.style.left = '-99999px';
+      p.style.top = '0';
+      p.style.width = '900px';
+    });
+    await new Promise(r=>setTimeout(r, 500)); // wait for DOM to render
+  } catch(panelErr){
+    console.error('Panel reveal error:', panelErr);
+  }
+
   for(const i of exToReport){
     const stage   = document.getElementById(ex_stages[i]);
     const refTxt  = document.getElementById(ex_refs[i])?.value || '[No reflection provided]';
     let imgSrc = '';
     try{
       if(stage && typeof html2canvas !== 'undefined'){
-        const cvs = await html2canvas(stage,{scale:1.5,allowTaint:true,useCORS:true,logging:false,backgroundColor:stage.style.background||'#ffffff'});
+        // Special case for infographic: capture the preview pane too
+        let target = stage;
+        if(ex_stages[i] === 'infoStage'){
+          const preview = document.getElementById('ex6Preview');
+          if(preview && preview.innerHTML.trim()){
+            // Capture canvas AND the preview side-by-side
+            target = stage;
+          }
+        }
+        const cvs = await html2canvas(target,{
+          scale:1.5,
+          allowTaint:true,
+          useCORS:true,
+          logging:false,
+          backgroundColor:'#ffffff',
+          width: target.scrollWidth,
+          height: target.scrollHeight,
+        });
         imgSrc = cvs.toDataURL('image/png');
       }
-    } catch(err){ console.warn(err); }
+    } catch(err){ console.warn('Capture failed for '+ex_stages[i]+':', err); }
 
     html += `
     <div style="page-break-inside:avoid;border-bottom:2px solid #f0f0f0;padding:1.5rem 2rem;">
@@ -6980,7 +7096,12 @@ function showPropsPanel(stageId, el){
   const rotEl = document.getElementById('ppRotVal');
   if(rotEl) rotEl.value = el.dataset.rotation || 0;
 
-  if(el.dataset.type === 'text'){
+  // Show Text section for both text elements AND step blocks
+  const isTextLike = el.dataset.type === 'text' || el.dataset.isStepBlock === '1';
+  if(isTextLike){
+    // Force Text section visible for step blocks
+    const ts = document.getElementById('ppTextSection');
+    if(ts) ts.style.display = '';
     const fsEl = document.getElementById('ppFontSize');
     if(fsEl) fsEl.value = parseInt(el.style.fontSize) || 16;
     try{
@@ -7617,10 +7738,12 @@ function serializeCanvas(stageId){
 
 // ── Restore one canvas from saved data ──────────────────────────────
 function restoreCanvas(stageId, elements){
-  if(!elements||!elements.length) return;
+  if(!elements||!elements.length){ console.log('restoreCanvas '+stageId+': no elements'); return; }
   const stage=document.getElementById(stageId);
-  if(!stage) return;
-  // Clear existing elements first
+  if(!stage){ console.warn('restoreCanvas '+stageId+': STAGE NOT FOUND'); return; }
+  console.log('restoreCanvas '+stageId+': restoring '+elements.length+' elements...');
+
+  // Clear existing elements
   stage.querySelectorAll('.cel,.cel-depth-shadow,.cel-pp-effect').forEach(e=>e.remove());
   const st=getState(stageId);
 
@@ -7633,31 +7756,83 @@ function restoreCanvas(stageId, elements){
     el.dataset.rotation    = data.rotation||'0';
     el.dataset.flipX       = data.flipX||'1';
     el.dataset.flipY       = data.flipY||'1';
-    // Apply all saved styles
-    const s=data.styles||{};
-    Object.keys(s).forEach(prop=>{ if(s[prop]) el.style[prop]=s[prop]; });
-    // Restore content
-    if(data.type==='text'&&data.html!==undefined){
-      el.innerHTML=data.html;
-    } else if(data.type==='image'){
-      if(data.imgSrc&&data.imgSrc!=='__large__'){
-        const img=document.createElement('img');
-        img.src=data.imgSrc;
-        img.style.cssText='width:100%;height:100%;object-fit:cover;display:block;pointer-events:none;';
-        el.appendChild(img);
-      } else {
-        el.innerHTML='<div style="display:flex;align-items:center;justify-content:center;height:100%;color:#999;font-size:.72rem;text-align:center;">📷 Re-upload image</div>';
-      }
-    } else if(data.shapeText){
-      el.textContent=data.shapeText;
+    if(data.isStepBlock === '1'){
+      el.dataset.isStepBlock = '1';
+      el.setAttribute('data-is-step-block','1');
     }
-    setupCel(el,stageId);
-    addResizeHandles(el);
-    stage.appendChild(el);
-    const n=parseInt((data.id||'').replace(/\D/g,''))||0;
-    if(st&&n>=st.nextId) st.nextId=n+1;
+
+    // Apply all saved styles
+    const s = data.styles || {};
+    Object.keys(s).forEach(prop=>{
+      if(s[prop] !== undefined && s[prop] !== '' && s[prop] !== 'normal' && s[prop] !== 'none'){
+        try { el.style[prop] = s[prop]; } catch(e){}
+      }
+    });
+
+    // Restore content (innerHTML preserves everything: text, shape parts, step circles)
+    if(data.html !== undefined){
+      el.innerHTML = data.html;
+    }
+
+    // For image elements where src was stripped, show placeholder
+    if(data.type==='image' && data.imgSrc === '__large__'){
+      el.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100%;color:#999;font-size:.72rem;text-align:center;padding:.3rem;">📷 Re-upload image</div>';
+    } else if(data.type==='image' && data.imgSrc && !el.querySelector('img')){
+      // Image src present but HTML missing img tag — rebuild
+      const img = document.createElement('img');
+      img.src = data.imgSrc;
+      img.style.cssText = 'width:100%;height:100%;object-fit:cover;display:block;pointer-events:none;';
+      el.appendChild(img);
+    }
+
+    try {
+      setupCel(el, stageId);
+      addResizeHandles(el);
+      stage.appendChild(el);
+    } catch(setupErr){
+      console.error('❌ setupCel failed for element:', data, setupErr);
+    }
+
+    // Re-attach step block circle dblclick handler if it's a step block
+    if(data.isStepBlock === '1'){
+      const circle = el.querySelector('.step-circle');
+      if(circle){
+        circle.addEventListener('dblclick', function(ev){
+          ev.stopPropagation();
+          circle.contentEditable='true';
+          circle.style.cursor='text';
+          circle.focus();
+          const range=document.createRange();
+          range.selectNodeContents(circle);
+          const sel=window.getSelection();
+          sel.removeAllRanges(); sel.addRange(range);
+        });
+        circle.addEventListener('blur', function(){
+          circle.contentEditable='false';
+          circle.style.cursor='pointer';
+        });
+      }
+      // Re-attach text dblclick
+      const txt = el.querySelector('.step-text');
+      if(txt){
+        txt.addEventListener('dblclick', function(ev){
+          ev.stopPropagation();
+          txt.contentEditable='true';
+          txt.style.cursor='text';
+          txt.focus();
+        });
+        txt.addEventListener('blur', function(){
+          txt.contentEditable='false';
+          txt.style.cursor='';
+        });
+      }
+    }
+
+    const n = parseInt((data.id||'').replace(/\D/g,''))||0;
+    if(st && n >= st.nextId) st.nextId = n + 1;
   });
-  console.log(`Restored ${elements.length} elements to ${stageId}`);
+
+  console.log('restoreCanvas '+stageId+': ✓ done');
 }
 // ════════════════════════════════════════════════════════════════════
 //  FIREBASE CLOUD SAVE  — uses Firestore REST API (no SDK required)
@@ -7699,39 +7874,59 @@ async function cloudSave(){
           rotation:    el.dataset.rotation    || '0',
           flipX:       el.dataset.flipX       || '1',
           flipY:       el.dataset.flipY       || '1',
-          styles:{
-            left:el.style.left, top:el.style.top,
-            width:el.style.width, height:el.style.height,
-            background:el.style.background, color:el.style.color,
-            fontSize:el.style.fontSize, fontFamily:el.style.fontFamily,
-            fontWeight:el.style.fontWeight, fontStyle:el.style.fontStyle,
-            textAlign:el.style.textAlign, textDecoration:el.style.textDecoration,
-            textShadow:el.style.textShadow, letterSpacing:el.style.letterSpacing,
-            lineHeight:el.style.lineHeight, writingMode:el.style.writingMode,
-            borderRadius:el.style.borderRadius, border:el.style.border,
-            clipPath:el.style.clipPath, opacity:el.style.opacity,
-            transform:el.style.transform, boxShadow:el.style.boxShadow,
-            filter:el.style.filter, padding:el.style.padding,
-            zIndex:el.style.zIndex, minHeight:el.style.minHeight,
-            webkitTextStroke:el.style.webkitTextStroke||'',
-            display:el.style.display, alignItems:el.style.alignItems,
-            justifyContent:el.style.justifyContent,
-          }
+          styles: (function(){
+            // Use inline first, fall back to computed style for visual props
+            const cs = getComputedStyle(el);
+            const pick = (prop) => el.style[prop] || cs[prop] || '';
+            return {
+              left:el.style.left||'0px', top:el.style.top||'0px',
+              width:el.style.width||cs.width, height:el.style.height||cs.height,
+              background:el.style.background||cs.background,
+              color:pick('color'),
+              fontSize:pick('fontSize'), fontFamily:pick('fontFamily'),
+              fontWeight:pick('fontWeight'), fontStyle:pick('fontStyle'),
+              textAlign:pick('textAlign'), textDecoration:pick('textDecoration'),
+              textShadow:pick('textShadow'), letterSpacing:pick('letterSpacing'),
+              lineHeight:pick('lineHeight'), writingMode:pick('writingMode'),
+              borderRadius:pick('borderRadius'), border:pick('border'),
+              clipPath:el.style.clipPath||'',
+              opacity:el.style.opacity||'1',
+              transform:el.style.transform||'',
+              boxShadow:el.style.boxShadow||'',
+              filter:el.style.filter||'',
+              padding:pick('padding'),
+              zIndex:el.style.zIndex||'',
+              minHeight:el.style.minHeight||'',
+              webkitTextStroke:el.style.webkitTextStroke||'',
+              display:el.style.display||'',
+              alignItems:el.style.alignItems||'',
+              justifyContent:el.style.justifyContent||'',
+              gap:el.style.gap||'',
+            };
+          })()
         };
-        if(el.dataset.type==='text'){
-          obj.html = el.innerHTML||'';
-        } else if(el.dataset.type==='image'){
+        // Save innerHTML for ALL elements — preserves shapes, step blocks, formatting
+        obj.html = el.innerHTML || '';
+        if(el.dataset.isStepBlock === '1') obj.isStepBlock = '1';
+        // For images, also extract the src separately
+        if(el.dataset.type==='image'){
           const img=el.querySelector('img');
-          if(img) obj.imgSrc=(img.src.startsWith('data:')&&img.src.length>200000)?'__large__':img.src;
-        } else {
-          // Shape: save text content if user typed on it
-          if(el.textContent.trim()) obj.shapeText = el.textContent;
+          if(img){
+            obj.imgSrc = (img.src.startsWith('data:') && img.src.length > 200000)
+              ? '__large__' : img.src;
+          }
         }
         return obj;
       });
     });
 
-    console.log(`Saving ${totalEls} canvas elements for key: ${key}`);
+    console.log(`📊 Cloud Save Diagnostic:`);
+    ['flyerStage','coverStage','infoStage','nlStage','posterStage'].forEach(sid=>{
+      const stage=document.getElementById(sid);
+      const count = stage?stage.querySelectorAll('.cel').length:0;
+      console.log(`  ${sid}: ${count} elements`);
+    });
+    console.log(`  → Total saving: ${totalEls} elements with key: ${key}`);
 
     const saveData = {
       studentName:    nm,
@@ -7751,22 +7946,98 @@ async function cloudSave(){
 
     let payload = JSON.stringify(saveData);
 
-    // Strip large images if over 900KB
+    // Firestore limit: 1MB document. If too big, COMPRESS images instead of stripping.
     if(payload.length > 900000){
+      console.warn(`Payload ${Math.round(payload.length/1024)}KB — compressing images...`);
+
+      // Helper: downscale a data URL image to fit under maxKB
+      const compressImg = (dataUrl, maxKB) => new Promise(resolve=>{
+        if(!dataUrl || !dataUrl.startsWith('data:image')){ resolve(dataUrl); return; }
+        const img = new Image();
+        img.onload = ()=>{
+          // Downscale until under target size
+          let quality = 0.8;
+          let scale = 1;
+          const tryCompress = () => {
+            const cnv = document.createElement('canvas');
+            cnv.width  = Math.round(img.width  * scale);
+            cnv.height = Math.round(img.height * scale);
+            const ctx = cnv.getContext('2d');
+            ctx.drawImage(img, 0, 0, cnv.width, cnv.height);
+            const out = cnv.toDataURL('image/jpeg', quality);
+            if(out.length < maxKB*1024 || (scale<0.2 && quality<0.4)){
+              resolve(out);
+            } else {
+              if(quality > 0.4){ quality -= 0.15; } else { scale *= 0.75; }
+              tryCompress();
+            }
+          };
+          tryCompress();
+        };
+        img.onerror = ()=>resolve('__large__');
+        img.src = dataUrl;
+      });
+
+      // Process every image in every canvas
+      const allImgs = [];
+      Object.values(saveData.canvases).forEach(els=>{
+        (els||[]).forEach(el=>{
+          if(el.imgSrc && el.imgSrc.startsWith('data:image')) allImgs.push(el);
+          if(el.html && el.html.includes('data:image')){
+            allImgs.push(el);
+          }
+        });
+      });
+
+      // Target per-image size: divide remaining budget across all images
+      const budgetKB = 800;  // total for all images
+      const perImgKB = Math.max(50, Math.floor(budgetKB / Math.max(1, allImgs.length)));
+      console.log(`Compressing ${allImgs.length} images to ~${perImgKB}KB each...`);
+
+      for(const el of allImgs){
+        if(el.imgSrc && el.imgSrc.startsWith('data:image')){
+          el.imgSrc = await compressImg(el.imgSrc, perImgKB);
+        }
+        if(el.html && el.html.includes('data:image')){
+          // Extract and compress base64 images in innerHTML
+          const matches = el.html.match(/data:image[^"]+/g) || [];
+          for(const m of matches){
+            const compressed = await compressImg(m, perImgKB);
+            el.html = el.html.replace(m, compressed);
+          }
+        }
+      }
+
+      payload = JSON.stringify(saveData);
+      console.log(`After compression: ${Math.round(payload.length/1024)}KB`);
+    }
+
+    // Last resort: if STILL too large after compression, save text/shapes only
+    if(payload.length > 950000){
+      console.warn(`Still too large — final image strip...`);
       Object.keys(saveData.canvases).forEach(sid2=>{
         saveData.canvases[sid2]=(saveData.canvases[sid2]||[]).map(el=>{
-          if(el.imgSrc) el.imgSrc='__large__'; return el;
+          if(el.imgSrc) el.imgSrc='__large__';
+          if(el.html && el.html.length>50000)
+            el.html = el.html.replace(/src="data:image[^"]+"/g,'src="__large__"');
+          return el;
         });
       });
       payload = JSON.stringify(saveData);
     }
 
     const url = `${_FB_BASE}/${encodeURIComponent(key)}?key=${_FB_API_KEY}`;
+    console.log(`📤 Payload size: ${Math.round(payload.length/1024)}KB → POSTing to Firestore...`);
     const res = await fetch(url,{
       method:'PATCH',
       headers:{'Content-Type':'application/json'},
       body:JSON.stringify({fields:{data:{stringValue:payload}}})
     });
+    console.log(`📥 Firestore response: ${res.status} ${res.ok?'✓':'✗'}`);
+    if(!res.ok){
+      const errText = await res.text();
+      console.error('🛑 FULL ERROR:', errText);
+    }
     if(!res.ok){
       const t=await res.text();
       let msg=`HTTP ${res.status}`;
@@ -7808,12 +8079,25 @@ async function cloudLoad(){
     if(iName) iName.value = data.studentName    ||'';
     if(iSec)  iSec.value  = data.studentSection ||'';
     if(iId)   iId.value   = data.studentId      ||'';
-    // Restore exercise selection
+    // Restore exercise selection (and unblock those tabs)
     if(data.selectedEx?.length){
+      // Clear any current selection first
+      [0,1,2,3,4].forEach(i=>{
+        if(selectedExercises.includes(i)){
+          const card=document.getElementById('card'+i);
+          if(card) toggleExChoice(i,card);
+        }
+      });
+      // Now apply the restored selection
       data.selectedEx.forEach(i=>{
         const card=document.getElementById('card'+i);
         if(card&&!selectedExercises.includes(i)) toggleExChoice(i,card);
       });
+      // Ensure the tab blocking reflects the restored state
+      applyTabBlocking();
+      // Hide the Start button since user has already started
+      const startBtn = document.getElementById('startBtn');
+      if(startBtn) startBtn.style.display='none';
     }
     // Restore reflections
     const rf=data.reflections||{};
@@ -7821,11 +8105,45 @@ async function cloudLoad(){
     Object.entries(rMap).forEach(([id,k])=>{
       const el=document.getElementById(id); if(el&&rf[k]) el.value=rf[k];
     });
-    // Restore canvases
+    // ═══════ DIAGNOSTIC CANVAS RESTORE ═══════
+    console.log('🔄 Starting canvas restore...');
+    console.log('   data.canvases exists:', !!data.canvases);
     if(data.canvases){
-      Object.entries(data.canvases).forEach(([stageId,els])=>restoreCanvas(stageId,els));
+      console.log('   keys:', Object.keys(data.canvases));
+      Object.entries(data.canvases).forEach(([sid, els])=>{
+        console.log(`   ${sid}: ${els?.length||0} elements in save`);
+      });
     }
-    setCloudStatus('saved','☁️ Restored ✓');
+    if(data.canvases){
+      // Wait longer for DOM to be fully ready
+      await new Promise(r=>setTimeout(r, 500));
+      let totalRestored = 0;
+      const stageCounts = [];
+      for(const [stageId, els] of Object.entries(data.canvases)){
+        const stage = document.getElementById(stageId);
+        if(!stage){
+          console.error('❌ Stage missing on restore:', stageId);
+          continue;
+        }
+        if(els && els.length){
+          console.log(`🔧 Restoring ${els.length} elements to ${stageId}...`);
+          try {
+            restoreCanvas(stageId, els);
+            const actualCount = stage.querySelectorAll('.cel').length;
+            console.log(`   ✓ ${stageId} now has ${actualCount} .cel elements`);
+            totalRestored += els.length;
+            stageCounts.push(stageId+':'+els.length);
+          } catch(restErr) {
+            console.error(`❌ restoreCanvas failed for ${stageId}:`, restErr);
+          }
+        }
+      }
+      console.log(`🏁 Restore complete: ${totalRestored} total elements [${stageCounts.join(', ')}]`);
+      setCloudStatus('saved','☁️ Restored '+totalRestored+' elements ✓');
+    } else {
+      console.warn('⚠️ No canvas data in cloud save');
+      setCloudStatus('saved','☁️ Restored (text only) ✓');
+    }
     setTimeout(()=>setCloudStatus('','☁️ Auto-saved'),4000);
   } catch(e){
     console.error('Cloud load error:', e);
