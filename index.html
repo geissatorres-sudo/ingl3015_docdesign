@@ -493,6 +493,7 @@ nav.tabbar{background:#fff;border-bottom:1px solid var(--g200);display:flex;alig
     <button class="btn btn-navy" onclick="printReport()">🖨 Print / Save as PDF</button>
     <a class="btn btn-ghost" id="emailBtn" href="#" onclick="return submitEmail()">✉ Email to Instructor</a>
     <button class="btn btn-ghost" onclick="cloudSave(true)">☁ Save to Cloud Now</button>
+    <button class="btn btn-ghost" onclick="cloudLoad(true)">⬇ Load My Saved Work</button>
   </div>
   <div id="reportOutput"><div class="report-empty">Your report will appear here. Complete your exercises, then click <strong>Generate Report</strong>.</div></div>
 </section>
@@ -1607,9 +1608,10 @@ async function cloudSave(manual){
 }
 
 async function cloudLoad(promptUser){
-  const key=studentKey(); if(!key) return;
+  const key=studentKey(); if(!key){ if(promptUser) toast('Enter your Student ID first',true); return; }
   let payload=null;
   try{
+    if(promptUser) toast('Looking for your saved work…');
     if(_FB_READY()){
       const url=`${_FB_BASE}/${encodeURIComponent(key)}?key=${_FB_API_KEY}`;
       const res=await fetch(url);
@@ -1618,11 +1620,11 @@ async function cloudLoad(promptUser){
       else throw new Error('HTTP '+res.status);
     }
     if(!payload) payload=localStorage.getItem('ingl3015_'+key);
-    if(!payload){ console.log('[LOAD] nothing to restore'); return; }
+    if(!payload){ console.log('[LOAD] nothing to restore'); if(promptUser) toast('No saved work found for that Student ID',true); return; }
     const data=JSON.parse(payload);
     if(promptUser && !confirm(`Saved work found for "${data.studentName||key}" — restore it?`)) return;
     restoreData(data);
-  }catch(err){ console.error('[LOAD] error',err); }
+  }catch(err){ console.error('[LOAD] error',err); if(promptUser) toast('Could not load: '+err.message,true); }
 }
 
 function restoreData(data){
@@ -1675,14 +1677,37 @@ function hookSaveTriggers(){
   setInterval(()=>{ if(studentKey()) cloudSave(false); }, 60000);
   // name: debounce input 2s, and on blur
   const nm=document.getElementById('iName');
-  let nmT; nm.addEventListener('input',()=>{ clearTimeout(nmT); nmT=setTimeout(()=>cloudSave(false),2000); });
-  nm.addEventListener('blur',()=>cloudSave(false));
+  let nmT; nm.addEventListener('input',()=>{ persistIdentity(); clearTimeout(nmT); nmT=setTimeout(()=>cloudSave(false),2000); });
+  nm.addEventListener('blur',()=>{ persistIdentity(); cloudSave(false); });
   // section change
-  document.getElementById('iSec').addEventListener('change',()=>cloudSave(false));
-  // student id: restore on blur
-  document.getElementById('iId').addEventListener('blur',()=>{ if(studentKey()) cloudLoad(true); });
+  document.getElementById('iSec').addEventListener('change',()=>{ persistIdentity(); cloudSave(false); });
+  // student id: persist + restore on blur
+  const id=document.getElementById('iId');
+  id.addEventListener('input',persistIdentity);
+  id.addEventListener('blur',()=>{ persistIdentity(); if(studentKey()) cloudLoad(true); });
   // reflections / order inputs -> scheduleSave
   document.querySelectorAll('[data-reflect]').forEach(t=>t.addEventListener('input',scheduleSave));
+  // remember who you are + auto-restore on page load
+  prefillIdentity();
+}
+
+/* Persist student identity locally so a reload remembers them */
+function persistIdentity(){
+  try{ localStorage.setItem('ingl3015_lastUser', JSON.stringify({
+    name:document.getElementById('iName').value||'',
+    sec:document.getElementById('iSec').value||'',
+    id:document.getElementById('iId').value||''
+  })); }catch(e){}
+}
+/* On load: refill the header fields and automatically pull saved work */
+function prefillIdentity(){
+  let u=null; try{ u=JSON.parse(localStorage.getItem('ingl3015_lastUser')||'null'); }catch(e){}
+  if(!u) return;
+  if(u.name) document.getElementById('iName').value=u.name;
+  if(u.sec)  document.getElementById('iSec').value=u.sec;
+  if(u.id)   document.getElementById('iId').value=u.id;
+  // canvas is empty on a fresh load, so restore silently (no confirm)
+  if(studentKey()) setTimeout(()=>cloudLoad(false), 400);
 }
 
 /* ============================================================
