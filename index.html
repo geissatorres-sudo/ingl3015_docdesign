@@ -618,6 +618,20 @@ nav.tabbar{background:#fff;border-bottom:1px solid var(--g200);display:flex;alig
   <div class="pp-sec" id="ppSecTransform">
     <button class="pp-sec-head" onclick="toggleSec('ppSecTransform')">Transform <span class="chev">▾</span></button>
     <div class="pp-sec-body">
+      <div class="pp-row"><label>Size</label><div class="pp-btns">
+        <button class="pp-mini" onclick="ppScale(0.88)">➖ Smaller</button>
+        <button class="pp-mini" onclick="ppScale(1.14)">➕ Bigger</button>
+      </div></div>
+      <div class="pp-row"><label>Width</label>
+        <button class="pp-mini" onclick="ppSize('w',-10)">−</button>
+        <input type="number" id="ppW" min="14" onchange="ppSizeSet('w',this.value)">
+        <button class="pp-mini" onclick="ppSize('w',10)">+</button>
+      </div>
+      <div class="pp-row"><label>Height</label>
+        <button class="pp-mini" onclick="ppSize('h',-10)">−</button>
+        <input type="number" id="ppH" min="14" onchange="ppSizeSet('h',this.value)">
+        <button class="pp-mini" onclick="ppSize('h',10)">+</button>
+      </div>
       <div class="pp-row"><label>Opacity</label><input type="range" id="ppOpacity" min="0" max="100" value="100" oninput="ppOpacity(this.value)"></div>
       <div class="pp-row"><label>Rotate</label><div class="pp-btns">
         <button class="pp-mini" onclick="ppRotate(-15)">−15°</button>
@@ -1082,6 +1096,7 @@ function syncPanelToEl(el){
   document.getElementById('ppOpacity').value=Math.round((parseFloat(el.style.opacity||1))*100);
   document.getElementById('ppRotateVal').value=el.dataset.rotation||0;
   document.getElementById('ppRadius').value=parseFloat(el.style.borderRadius)||0;
+  updateSizeInputs(el);
   const tt=getTextTarget(el);
   if(showText && tt){
     document.getElementById('ppFontSizeVal').value=parseFloat(getComputedStyle(tt).fontSize)||22;
@@ -1272,6 +1287,19 @@ function applyTransform(el){
   el.style.transform=`rotate(${rot}deg) scale(${fh},${fv})`;
 }
 function ppOpacity(v){ const el=_ppActiveEl; if(!el) return; el.style.opacity=v/100; scheduleSave(); }
+/* ----- SIZE controls (work for every shape, clipped or not) ----- */
+function curSize(el,dim){ const v=parseFloat(el.style[dim==='w'?'width':'height']); if(!isNaN(v)) return v; const r=el.getBoundingClientRect(); return dim==='w'?r.width:r.height; }
+function updateSizeInputs(el){ const w=document.getElementById('ppW'), h=document.getElementById('ppH'); if(w) w.value=Math.round(curSize(el,'w')); if(h) h.value=Math.round(curSize(el,'h')); }
+function ppSize(dim,delta){ const el=_ppActiveEl; if(!el) return; const prop=dim==='w'?'width':'height'; const nv=Math.max(14,curSize(el,dim)+delta); el.style[prop]=nv+'px'; syncEffects(el); updateSizeInputs(el); scheduleSave(); }
+function ppSizeSet(dim,v){ const el=_ppActiveEl; if(!el) return; const prop=dim==='w'?'width':'height'; el.style[prop]=Math.max(14,parseFloat(v)||14)+'px'; syncEffects(el); updateSizeInputs(el); scheduleSave(); }
+function ppScale(f){ const el=_ppActiveEl; if(!el) return;
+  el.style.width =Math.max(14,curSize(el,'w')*f)+'px';
+  el.style.height=Math.max(14,curSize(el,'h')*f)+'px';
+  // scale text size too so words grow with the box
+  const tt=getTextTarget(el);
+  if(tt){ const fs=parseFloat(getComputedStyle(tt).fontSize)||0; if(fs){ tt.style.fontSize=Math.max(6,fs*f)+'px'; } }
+  syncEffects(el); updateSizeInputs(el); scheduleSave();
+}
 function ppRotate(d){ const el=_ppActiveEl; if(!el) return; el.dataset.rotation=(parseFloat(el.dataset.rotation||0)+d); document.getElementById('ppRotateVal').value=el.dataset.rotation; applyTransform(el); scheduleSave(); }
 function ppRotateSet(v){ const el=_ppActiveEl; if(!el) return; el.dataset.rotation=parseFloat(v)||0; applyTransform(el); scheduleSave(); }
 function ppFlip(ax){ const el=_ppActiveEl; if(!el) return; if(ax==='h') el.dataset.flipH=el.dataset.flipH==='1'?'0':'1'; else el.dataset.flipV=el.dataset.flipV==='1'?'0':'1'; applyTransform(el); scheduleSave(); }
