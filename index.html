@@ -1699,7 +1699,7 @@ async function generateReport(){
   const date=new Date().toLocaleDateString('en-US',{year:'numeric',month:'long',day:'numeric'});
   const exToReport=[...selectedExercises].sort();
 
-  let html=`<div class="r-page" id="printableReport"><div class="r-cover">
+  let html=`<div id="printableReport"><div class="r-page"><div class="r-cover">
     <span class="badge">INGL 3015</span>
     <h1>Document Design<br>Creative Project</h1>
     <div class="sub">Applying the CARP Principles</div>
@@ -1710,7 +1710,7 @@ async function generateReport(){
       <div><div class="k">Date</div><div class="v">${date}</div></div>
       <div><div class="k">Instructor</div><div class="v">Dra. Geissa R. Torres Santiago</div></div>
       <div><div class="k">Exercises</div><div class="v">${exToReport.join(', ')}</div></div>
-    </div></div>`;
+    </div></div></div>`;
 
   const wasActive=document.querySelector('.tab-panel.active');
   const wasTab=document.querySelector('.tab.active')?.dataset.tab;
@@ -1735,7 +1735,7 @@ async function generateReport(){
       }catch(err){ console.error('html2canvas',err); }
     }
     const refl=document.querySelector(`[data-reflect="${i}"]`)?.value||'(No reflection written.)';
-    html+=`<div class="r-page"><div class="r-ex" style="page-break-before:always">
+    html+=`<div class="r-page"><div class="r-ex">
       <div class="exnum">EXERCISE ${i}</div>
       <h2>${esc(exNames[i])}</h2>
       ${imgSrc?`<img class="shot" src="${imgSrc}">`:'<p style="color:#999">No canvas content captured.</p>'}
@@ -1743,7 +1743,7 @@ async function generateReport(){
     </div></div>`;
   }
   html+=`<div class="r-page"><div class="r-foot">Generated ${date} · INGL 3015 Document Design Creative Project<br>University of Puerto Rico, Arecibo · Dra. Geissa R. Torres Santiago</div></div>`;
-  html=html.replace('</div>','</div>'); // noop
+  html+=`</div>`; // close #printableReport wrapper
   out.innerHTML=html;
 
   // restore
@@ -1755,16 +1755,36 @@ async function generateReport(){
 }
 function esc(s){ return (s||'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
 
-function printReport(){
-  const reportEl=document.getElementById('printableReport');
-  if(!reportEl){ alert('Generate the report first.'); return; }
+async function printReport(){
+  const wrap=document.getElementById('printableReport');
+  if(!wrap){ alert('Generate the report first.'); return; }
+  const pages=[...wrap.querySelectorAll('.r-page')];
+  if(!pages.length){ alert('Generate the report first.'); return; }
+  toast('Preparing your PDF…');
+  // Capture each report page as a full-color image (prints reliably — no lost backgrounds)
+  const imgs=[];
+  for(const p of pages){
+    try{
+      const cvs=await html2canvas(p,{scale:2,backgroundColor:null,useCORS:true,logging:false});
+      imgs.push(cvs.toDataURL('image/png'));
+    }catch(err){ console.error('report page capture failed',err); }
+  }
+  if(!imgs.length){ alert('Could not prepare the PDF. Please regenerate the report and try again.'); return; }
   const w=window.open('','_blank');
-  const styles=document.querySelector('style').outerHTML;
-  w.document.write(`<!DOCTYPE html><html><head><meta charset="utf-8">${styles}
-    <style>@page{margin:0;size:letter}body{background:#fff}.r-page{box-shadow:none;margin:0 auto}</style>
-    </head><body>${document.getElementById('reportOutput').innerHTML}</body></html>`);
+  w.document.write(`<!DOCTYPE html><html><head><meta charset="utf-8"><title>INGL 3015 Report</title>
+    <style>
+      @page{ size:letter; margin:0; }
+      *{ margin:0; padding:0; -webkit-print-color-adjust:exact; print-color-adjust:exact; }
+      html,body{ background:#fff; }
+      .pg{ width:100vw; height:100vh; display:flex; align-items:center; justify-content:center; overflow:hidden; page-break-after:always; }
+      .pg:last-child{ page-break-after:auto; }
+      .pg img{ max-width:100%; max-height:100%; display:block; }
+    </style></head><body>
+    ${imgs.map(s=>`<div class="pg"><img src="${s}"></div>`).join('')}
+    </body></html>`);
   w.document.close();
-  setTimeout(()=>{ w.focus(); w.print(); }, 600);
+  // wait for images to decode in the new window, then open print dialog
+  setTimeout(()=>{ w.focus(); w.print(); }, 900);
 }
 function submitEmail(){
   const name=document.getElementById('iName').value||'';
