@@ -379,7 +379,7 @@ nav.tabbar{background:#fff;border-bottom:1px solid var(--g200);display:flex;alig
     <div class="ex-meta">
       <div class="exnum">EXERCISE 2</div>
       <h2>Cover Page — UPRA Graduate Catalog</h2>
-      <p>Design a professional cover page for the UPRA Graduate Catalog. Build it on the canvas, or upload a cover you designed in another tool to include in your report.</p>
+      <p>Design a professional cover page for the UPRA Graduate Catalog. Build it on the canvas — use <strong>+ Image</strong> in the toolbar to bring in any photo or artwork you want to include.</p>
     </div>
   </div>
   <div class="ex-body">
@@ -397,20 +397,7 @@ nav.tabbar{background:#fff;border-bottom:1px solid var(--g200);display:flex;alig
         <textarea id="refl-2" data-reflect="2" placeholder="Describe your hierarchy and palette choices."></textarea>
       </div>
     </div>
-    <div>
-      <div class="upload-tabs">
-        <button class="upload-tab active" onclick="coverMode('canvas',this)">🎨 Design on Canvas</button>
-        <button class="upload-tab" onclick="coverMode('upload',this)">⬆ Upload Image</button>
-      </div>
-      <div class="canvas-wrap" data-stage="coverStage" id="coverCanvasWrap"></div>
-      <div id="coverUploadWrap" class="hidden">
-        <div class="upload-zone" id="coverUZone" onclick="document.getElementById('coverUpload').click()">
-          <div style="font-size:34px;margin-bottom:8px">⬆</div>
-          Click to upload your cover page (JPG / PNG / WebP)
-        </div>
-        <input type="file" id="coverUpload" accept="image/*" class="hidden" onchange="coverUpload(event)">
-      </div>
-    </div>
+    <div class="canvas-wrap" data-stage="coverStage" id="coverCanvasWrap"></div>
   </div>
 </section>
 
@@ -1767,22 +1754,9 @@ function refUpload(e, zoneId){
 
 function coverMode(mode, btn){
   coverInputMode=mode;
-  document.querySelectorAll('#panel-ex-2 .upload-tab').forEach(b=>b.classList.remove('active'));
-  btn.classList.add('active');
-  document.getElementById('coverCanvasWrap').classList.toggle('hidden', mode!=='canvas');
-  document.getElementById('coverUploadWrap').classList.toggle('hidden', mode!=='upload');
+  const wrap=document.getElementById('coverCanvasWrap'); if(wrap) wrap.classList.remove('hidden');
 }
-function coverUpload(e){
-  const f=e.target.files[0]; if(!f) return;
-  const rd=new FileReader();
-  rd.onload=ev=>{
-    const z=document.getElementById('coverUZone');
-    z.classList.add('has-img'); z.innerHTML=`<img src="${ev.target.result}" alt="cover">`;
-    z.dataset.img=ev.target.result;
-    scheduleSave();
-  };
-  rd.readAsDataURL(f);
-}
+function coverUpload(e){ /* legacy — Ex 2 now uses the canvas + Image tool */ }
 
 /* ============================================================
    TOAST + SAVE BADGE
@@ -2080,9 +2054,7 @@ async function generateReport(){
     await new Promise(r=>setTimeout(r,1200));
     let imgSrc='';
     // ex2 upload case
-    if(i===2 && coverInputMode==='upload'){
-      const z=document.getElementById('coverUZone'); imgSrc=z?.dataset.img||'';
-    }
+    if(false){}
     if(!imgSrc){
       const stage=document.getElementById(EX_STAGE[i]);
       try{
