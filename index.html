@@ -146,12 +146,19 @@ nav.tabbar{background:#fff;border-bottom:1px solid var(--g200);display:flex;alig
 .cel.sel{outline:2px solid var(--gold);outline-offset:1px}
 .cel-txt{padding:4px 6px;color:#1a1a1a;font-size:22px}
 .cel-shape{background:var(--navy)}
-.cel-img img{width:100%;height:100%;display:block;object-fit:contain;pointer-events:none}
+.cel-img img{width:100%;height:100%;display:block;object-fit:fill;pointer-events:none}
+.cel-img[data-fit="contain"] img{object-fit:contain}
+.cel-img[data-fit="cover"] img{object-fit:cover}
+.cel-img[data-fit="fill"] img{object-fit:fill}
 .res-handle{display:none!important}/* legacy — replaced by float-rh */
 .float-rh{position:absolute;width:18px;height:18px;background:#fff;border:2.5px solid var(--gold);border-radius:50%;z-index:500;cursor:nwse-resize;display:none;box-shadow:0 2px 8px rgba(31,56,100,.3);pointer-events:all}
 .float-rh.vis{display:block}
 .cel-pp-effect,.cel-depth-shadow{position:absolute;pointer-events:none}
-.fs-stage{position:fixed!important;inset:0;z-index:9000;width:100vw!important;height:100vh!important;background:#fff}
+.fs-stage{position:fixed!important;inset:0;z-index:9000;width:100vw!important;height:100vh!important;background:#fff;overflow:auto!important}
+.fs-exit{position:fixed;top:16px;right:16px;z-index:9600;background:var(--navy);color:#fff;font-size:13px;font-weight:700;padding:10px 18px;border-radius:8px;box-shadow:0 4px 18px rgba(0,0,0,.3);display:none}
+.fs-exit:hover{background:var(--gold);color:var(--navy2)}
+.fs-exit.vis{display:block}
+.stage-bgimg{position:absolute;inset:0;background-size:cover;background-position:center;pointer-events:none;z-index:0}
 
 /* ===== PROPERTIES PANEL ===== */
 #propPanel{position:fixed;top:0;right:0;width:300px;height:100vh;background:#fff;box-shadow:-6px 0 30px rgba(0,0,0,.14);z-index:8000;flex-direction:column;display:none}
@@ -598,6 +605,24 @@ nav.tabbar{background:#fff;border-bottom:1px solid var(--g200);display:flex;alig
     <button class="pp-sec-head" onclick="toggleSec('ppSecShape')">Shape &amp; Effects <span class="chev">▾</span></button>
     <div class="pp-sec-body">
       <div class="pp-shape-grid" id="ppShapeGrid"></div>
+      <div style="font-size:10px;letter-spacing:1px;color:var(--g400);margin:12px 0 5px;font-family:'DM Mono',monospace">PHOTO INSIDE SHAPE</div>
+      <div class="pp-btns">
+        <button class="pp-mini" onclick="ppFillPhoto()">🖼 Fill with Photo</button>
+        <button class="pp-mini danger" onclick="ppClearPhoto()">Clear Photo</button>
+      </div>
+      <div class="pp-row" style="margin-top:8px"><label>Photo</label><div class="pp-btns">
+        <button class="pp-mini" title="Whole photo always visible — never cropped" onclick="ppPhotoFit('contain')">Fit Whole</button>
+        <button class="pp-mini" title="Fill the shape, crop the overflow" onclick="ppPhotoFit('cover')">Fill/Crop</button>
+        <button class="pp-mini" title="Stretch to the shape" onclick="ppPhotoFit('stretch')">Stretch</button>
+      </div></div>
+      <div class="pp-row"><label>Shape</label><button class="pp-mini" title="Resize the shape to the photo’s own proportions" onclick="ppFitShapeToPhoto()">⬚ Match Photo Proportions</button></div>
+      <div class="pp-row"><label>Move</label><div class="pp-btns">
+        <button class="pp-mini" onclick="ppPhotoPos(-8,0)">⬅</button>
+        <button class="pp-mini" onclick="ppPhotoPos(8,0)">➡</button>
+        <button class="pp-mini" onclick="ppPhotoPos(0,-8)">⬆</button>
+        <button class="pp-mini" onclick="ppPhotoPos(0,8)">⬇</button>
+        <button class="pp-mini" onclick="ppPhotoCenter()">Center</button>
+      </div></div>
       <div style="font-size:10px;letter-spacing:1px;color:var(--g400);margin:12px 0 5px;font-family:'DM Mono',monospace">DEPTH</div>
       <div class="pp-btns">
         <button class="pp-mini" onclick="ppDepth('flat')">Flat</button>
@@ -628,6 +653,12 @@ nav.tabbar{background:#fff;border-bottom:1px solid var(--g200);display:flex;alig
         <div class="pp-btns">
           <button class="pp-mini" onclick="ppImg('removebg')">Remove BG</button>
           <button class="pp-mini" onclick="ppImg('enhance')">Enhance</button>
+        </div>
+        <div style="font-size:10px;letter-spacing:1px;color:var(--g400);margin:10px 0 5px;font-family:'DM Mono',monospace">PHOTO FIT</div>
+        <div class="pp-btns">
+          <button class="pp-mini" title="Stretch freely to the box" onclick="ppFit('fill')">Stretch</button>
+          <button class="pp-mini" title="Fill the box, crop overflow" onclick="ppFit('cover')">Fill/Crop</button>
+          <button class="pp-mini" title="Keep whole photo visible" onclick="ppFit('contain')">Fit Whole</button>
         </div>
       </div>
     </div>
@@ -873,6 +904,11 @@ function buildCanvas(wrap, stageId){
           <button style="background:#1a1a1a" title="Black" onclick="setCanvasBg('${stageId}','#1a1a1a')"></button>
           <button style="background:repeating-conic-gradient(#ccc 0 25%,#fff 0 50%) 0/12px 12px" title="Transparent" onclick="setCanvasBg('${stageId}','transparent')"></button>
         </div>
+        <div style="border-top:1px solid var(--g200);margin:10px 0 8px"></div>
+        <div style="font-size:10px;letter-spacing:1px;color:var(--g400);margin-bottom:6px;font-family:'DM Mono',monospace">BACKGROUND IMAGE</div>
+        <button class="pp-mini" style="width:100%;margin-bottom:8px" onclick="pickBgImage('${stageId}')">⬆ Upload Background Photo</button>
+        <div class="pp-row"><label style="min-width:52px">Opacity</label><input type="range" min="0" max="100" value="100" oninput="setBgOpacity('${stageId}',this.value)"></div>
+        <button class="pp-mini danger" style="width:100%" onclick="removeBgImage('${stageId}')">Remove Background Photo</button>
       </div>
     </div>
   </div>
@@ -1192,8 +1228,42 @@ function toggleOrient(stageId, btn){
 }
 function toggleFull(stageId){
   const st=document.getElementById(stageId);
-  st.classList.toggle('fs-stage');
+  const on=st.classList.toggle('fs-stage');
+  let btn=document.getElementById('fsExitBtn');
+  if(!btn){
+    btn=document.createElement('button'); btn.id='fsExitBtn'; btn.className='fs-exit';
+    btn.textContent='✕ Exit Fullscreen';
+    document.body.appendChild(btn);
+  }
+  btn.classList.toggle('vis', on);
+  btn.onclick=()=>{ st.classList.remove('fs-stage'); btn.classList.remove('vis'); };
 }
+// ESC also leaves fullscreen
+document.addEventListener('keydown',e=>{
+  if(e.key!=='Escape') return;
+  const fs=document.querySelector('.design-stage.fs-stage');
+  if(fs){ fs.classList.remove('fs-stage'); document.getElementById('fsExitBtn')?.classList.remove('vis'); }
+});
+
+/* ---------- CANVAS BACKGROUND IMAGE ---------- */
+function bgLayer(stageId, create){
+  const st=document.getElementById(stageId); if(!st) return null;
+  let L=st.querySelector(':scope > .stage-bgimg');
+  if(!L && create){ L=document.createElement('div'); L.className='stage-bgimg'; st.insertBefore(L, st.firstChild); }
+  return L;
+}
+function pickBgImage(stageId){
+  const inp=document.createElement('input'); inp.type='file'; inp.accept='image/*';
+  inp.onchange=e=>{
+    const f=e.target.files[0]; if(!f) return;
+    const rd=new FileReader();
+    rd.onload=ev=>{ const L=bgLayer(stageId,true); L.style.backgroundImage=`url("${ev.target.result}")`; closePops(); scheduleSave(); toast('Background photo added — use the Opacity slider to fade it'); };
+    rd.readAsDataURL(f);
+  };
+  inp.click();
+}
+function setBgOpacity(stageId, v){ const L=bgLayer(stageId,false); if(!L){ toast('Upload a background photo first',true); return; } L.style.opacity=v/100; scheduleSave(); }
+function removeBgImage(stageId){ bgLayer(stageId,false)?.remove(); closePops(); scheduleSave(); }
 function delSelected(){ if(_ppActiveEl){ removeEffects(_ppActiveEl); _ppActiveEl.remove(); selectedCel=null; _ppActiveEl=null; dimPanelHeader(); scheduleSave(); } }
 function clearAll(stageId){
   if(!confirm('⚠️ Are you sure you want to clear everything?')) return;
@@ -1331,7 +1401,71 @@ function loadFromFile(){
 }
 
 /* ---------- SHAPE GRID + DEPTH ---------- */
-function ppPickShape(s){ const el=_ppActiveEl; if(!el||el.dataset.type!=='shape') return; applyShape(el,s); syncEffects(el); scheduleSave(); }
+function ppPickShape(s){ const el=_ppActiveEl; if(!el) return;
+  if(el.dataset.type!=='shape' && el.dataset.type!=='image') return;
+  applyShape(el,s); syncEffects(el); scheduleSave();
+}
+/* Fill the selected shape with a photo (keeps its clip-path silhouette) */
+function ppFillPhoto(){
+  const el=_ppActiveEl; if(!el) return;
+  const inp=document.createElement('input'); inp.type='file'; inp.accept='image/*';
+  inp.onchange=e=>{
+    const f=e.target.files[0]; if(!f) return;
+    const rd=new FileReader();
+    rd.onload=ev=>{
+      el.style.backgroundImage=`url("${ev.target.result}")`;
+      el.style.backgroundSize='contain';
+      el.style.backgroundPosition='center';
+      el.style.backgroundRepeat='no-repeat';
+      el.dataset.photoFill='1';
+      el.dataset.photoFit='contain';
+      // remember the photo's natural proportions and match the shape to them
+      const probe=new Image();
+      probe.onload=()=>{
+        el.dataset.photoAR=(probe.width/probe.height)||1;
+        fitShapeToPhoto(el);
+        positionFloatHandle(el); updateSizeInputs(el); scheduleSave();
+      };
+      probe.src=ev.target.result;
+      scheduleSave();
+      toast('Photo added — the shape now matches the photo\u2019s proportions');
+    };
+    rd.readAsDataURL(f);
+  };
+  inp.click();
+}
+/* Resize the shape box so it matches the photo's own proportions (no empty space) */
+function fitShapeToPhoto(el){
+  const ar=parseFloat(el?.dataset.photoAR); if(!el||!ar) return;
+  const w=parseFloat(el.style.width)||el.offsetWidth||160;
+  el.style.height=Math.max(20,Math.round(w/ar))+'px';
+  syncEffects(el);
+}
+function ppFitShapeToPhoto(){
+  const el=_ppActiveEl;
+  if(!el||!el.dataset.photoAR){ toast('Add a photo to the shape first',true); return; }
+  fitShapeToPhoto(el); positionFloatHandle(el); updateSizeInputs(el); scheduleSave();
+  toast('Shape matched to photo proportions');
+}
+function ppClearPhoto(){ const el=_ppActiveEl; if(!el) return; el.style.backgroundImage='none'; el.dataset.photoFill=''; el.dataset.photoFit=''; scheduleSave(); }
+/* How the filled photo sits inside the shape as it is resized */
+function ppPhotoFit(mode){
+  const el=_ppActiveEl; if(!el||!el.dataset.photoFill) { toast('Add a photo to the shape first',true); return; }
+  el.dataset.photoFit=mode;
+  el.style.backgroundSize = mode==='stretch' ? '100% 100%' : mode;
+  scheduleSave();
+}
+/* Nudge the photo inside its shape */
+function ppPhotoPos(dx,dy){
+  const el=_ppActiveEl; if(!el||!el.dataset.photoFill) return;
+  const cur=(el.style.backgroundPosition||'center').split(' ');
+  let x=parseFloat(el.dataset.pbx||50), y=parseFloat(el.dataset.pby||50);
+  x=Math.max(0,Math.min(100,x+dx)); y=Math.max(0,Math.min(100,y+dy));
+  el.dataset.pbx=x; el.dataset.pby=y;
+  el.style.backgroundPosition=`${x}% ${y}%`;
+  scheduleSave();
+}
+function ppPhotoCenter(){ const el=_ppActiveEl; if(!el) return; el.dataset.pbx=50; el.dataset.pby=50; el.style.backgroundPosition='center'; scheduleSave(); }
 function ppDepth(kind){ const el=_ppActiveEl; if(!el) return;
   removeEffects(el);
   const map={
@@ -1403,6 +1537,7 @@ function ppEffect(kind){ const el=_ppActiveEl; if(!el) return;
   }
   scheduleSave();
 }
+function ppFit(mode){ const el=_ppActiveEl; if(!el||el.dataset.type!=='image') return; el.dataset.fit=mode; scheduleSave(); }
 function ppImg(kind){ const el=_ppActiveEl; if(!el) return; const img=el.querySelector('img'); if(!img) return;
   if(kind==='enhance'){ img.style.filter='contrast(1.12) saturate(1.15) brightness(1.03)'; toast('Image enhanced'); }
   if(kind==='removebg'){ img.style.mixBlendMode='multiply'; toast('Applied multiply blend (lightweight BG removal)'); }
@@ -1682,6 +1817,8 @@ function serializeCanvases(){
     total+=els.length;
     canvases[id]={
       bg: stage?stage.style.background:'',
+      bgImg: stage?.querySelector(':scope > .stage-bgimg')?.style.backgroundImage||'',
+      bgImgOpacity: stage?.querySelector(':scope > .stage-bgimg')?.style.opacity||'',
       border: stage?stage.style.border:'',
       landscape: stage?stage.classList.contains('landscape'):false,
       els: els.map(el=>{
@@ -1708,6 +1845,9 @@ function serializeCanvases(){
           activeShape:el.dataset.activeShape||'', rotation:el.dataset.rotation||'0',
           flipH:el.dataset.flipH||'', flipV:el.dataset.flipV||'',
           isStepBlock:el.dataset.isStepBlock||'', isLine:el.dataset.isLine||'',
+          fit:el.dataset.fit||'', photoFill:el.dataset.photoFill||'', photoFit:el.dataset.photoFit||'',
+          pbx:el.dataset.pbx||'', pby:el.dataset.pby||'', photoAR:el.dataset.photoAR||'',
+          backgroundImage:el.style.backgroundImage||'', backgroundSize:el.style.backgroundSize||'', backgroundPosition:el.style.backgroundPosition||'',
           ...(el.dataset.type==='image'&&el.querySelector('img')?{imgSrc:el.querySelector('img').src}:{})
         };
       })
@@ -1826,6 +1966,7 @@ function restoreCanvas(stageId, cdata){
   st.querySelectorAll('.cel,.cel-pp-effect,.cel-depth-shadow').forEach(n=>n.remove());
   if(stageId==='nlStage') st.dataset.preloaded='1'; // avoid double preload
   if(cdata.bg) st.style.background=cdata.bg;
+  if(cdata.bgImg){ const L=bgLayer(stageId,true); L.style.backgroundImage=cdata.bgImg; if(cdata.bgImgOpacity) L.style.opacity=cdata.bgImgOpacity; }
   if(cdata.border) st.style.border=cdata.border;
   st.classList.toggle('landscape', !!cdata.landscape);
   (cdata.els||[]).forEach(d=>{
@@ -1838,6 +1979,17 @@ function restoreCanvas(stageId, cdata){
     if(d.flipV) el.dataset.flipV=d.flipV;
     if(d.isStepBlock){ el.dataset.isStepBlock=d.isStepBlock; el.classList.remove('cel-txt'); }
     if(d.isLine) el.dataset.isLine=d.isLine;
+    if(d.fit) el.dataset.fit=d.fit;
+    if(d.photoFill){ el.dataset.photoFill=d.photoFill;
+      if(d.backgroundImage) el.style.backgroundImage=d.backgroundImage;
+      if(d.photoFit) el.dataset.photoFit=d.photoFit;
+      el.style.backgroundSize=d.backgroundSize||(d.photoFit==='stretch'?'100% 100%':(d.photoFit||'contain'));
+      el.style.backgroundPosition=d.backgroundPosition||'center';
+      el.style.backgroundRepeat='no-repeat';
+      if(d.pbx) el.dataset.pbx=d.pbx;
+      if(d.pby) el.dataset.pby=d.pby;
+      if(d.photoAR) el.dataset.photoAR=d.photoAR;
+    }
     el.innerHTML=d.html||d.text||'';
     if(d.type==='text'&&!d.isStepBlock&&!d.html) el.textContent=d.text||'';
     const s=d.styles||{};
