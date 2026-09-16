@@ -140,7 +140,7 @@ nav.tabbar{background:#fff;border-bottom:1px solid var(--g200);display:flex;alig
 .stage-scroll{padding:24px;background:repeating-linear-gradient(45deg,#f7f6f2,#f7f6f2 12px,#f3f1eb 12px,#f3f1eb 24px);display:flex;justify-content:center;overflow:auto;min-height:560px}
 .design-stage{position:relative;background:#fff;width:560px;height:760px;box-shadow:0 6px 30px rgba(0,0,0,.14);overflow:hidden;flex:none;transition:width .2s,height .2s}
 .design-stage.landscape{width:760px;height:560px}
-.design-stage.grid-on{background-image:linear-gradient(rgba(31,56,100,.08) 1px,transparent 1px),linear-gradient(90deg,rgba(31,56,100,.08) 1px,transparent 1px);background-size:20px 20px}
+.stage-grid{position:absolute;inset:0;pointer-events:none;z-index:1;background-image:linear-gradient(rgba(31,56,100,.14) 1px,transparent 1px),linear-gradient(90deg,rgba(31,56,100,.14) 1px,transparent 1px);background-size:20px 20px}
 .cel{position:absolute;cursor:move;user-select:none;min-width:14px;min-height:14px}
 .cel[contenteditable="true"]{user-select:text;outline:2px solid var(--navyL)}
 .cel.sel{outline:2px solid var(--gold);outline-offset:1px}
@@ -154,7 +154,21 @@ nav.tabbar{background:#fff;border-bottom:1px solid var(--g200);display:flex;alig
 .float-rh{position:absolute;width:18px;height:18px;background:#fff;border:2.5px solid var(--gold);border-radius:50%;z-index:500;cursor:nwse-resize;display:none;box-shadow:0 2px 8px rgba(31,56,100,.3);pointer-events:all}
 .float-rh.vis{display:block}
 .cel-pp-effect,.cel-depth-shadow{position:absolute;pointer-events:none}
-.fs-stage{position:fixed!important;inset:0;z-index:9000;width:100vw!important;height:100vh!important;background:#fff;overflow:auto!important}
+/* Fullscreen = focus mode: whole canvas area (toolbar + stage) fills the screen, Properties Panel stays usable */
+.fs-wrap{position:fixed!important;inset:0;z-index:9000;background:#fff;border-radius:0!important;box-shadow:none!important;display:flex!important;flex-direction:column;padding-top:46px;transition:right .15s}
+.fs-wrap.pp-room{right:300px}
+.fs-wrap>.toolbar{flex:none}
+.fs-wrap>.stage-scroll{flex:1;min-height:0;overflow:auto;align-items:flex-start;padding:20px}
+.fs-bar{position:fixed;top:0;left:0;right:0;height:46px;z-index:9550;background:var(--navy2);color:#fff;display:none;align-items:center;gap:14px;padding:0 14px}
+.fs-bar.vis{display:flex}
+.fs-bar.pp-room{right:300px}
+.fs-bar .fs-title{font-family:'DM Mono',monospace;font-size:11px;letter-spacing:1.5px;text-transform:uppercase;color:var(--goldL)}
+.fs-bar .fs-tabs{display:flex;gap:4px;align-items:center;overflow-x:auto}
+.fs-bar .fs-tab{background:rgba(255,255,255,.1);color:#fff;font-size:12px;font-weight:600;padding:6px 11px;border-radius:5px;white-space:nowrap}
+.fs-bar .fs-tab:hover{background:rgba(255,255,255,.22)}
+.fs-bar .fs-tab.active{background:var(--gold);color:var(--navy2)}
+.fs-bar .fs-close{margin-left:auto;background:rgba(255,255,255,.14);color:#fff;font-size:12px;font-weight:700;padding:7px 14px;border-radius:6px;white-space:nowrap}
+.fs-bar .fs-close:hover{background:var(--gold);color:var(--navy2)}
 .fs-exit{position:fixed;top:16px;right:16px;z-index:9600;background:var(--navy);color:#fff;font-size:13px;font-weight:700;padding:10px 18px;border-radius:8px;box-shadow:0 4px 18px rgba(0,0,0,.3);display:none}
 .fs-exit:hover{background:var(--gold);color:var(--navy2)}
 .fs-exit.vis{display:block}
@@ -1156,12 +1170,14 @@ function openPanel(){
   const p=document.getElementById('propPanel');
   p.classList.add('open');
   const h=document.getElementById('ppHead'); h.classList.remove('dim');
+  if(typeof fsApplyPanelRoom==='function') fsApplyPanelRoom();
 }
 function closePanel(){
   document.getElementById('propPanel').classList.remove('open');
   document.querySelectorAll('.cel.sel').forEach(c=>c.classList.remove('sel'));
   selectedCel=null; _ppActiveEl=null;
   hideFloatHandles();
+  if(typeof fsApplyPanelRoom==='function') fsApplyPanelRoom();
 }
 function dimPanelHeader(){
   const h=document.getElementById('ppHead'); h.classList.add('dim');
@@ -1205,7 +1221,14 @@ function togglePop(btn){ const m=btn.parentElement.querySelector('.tb-menu'); co
 function closePops(){ document.querySelectorAll('.tb-menu.open').forEach(m=>m.classList.remove('open')); }
 document.addEventListener('click',e=>{ if(!e.target.closest('.tb-pop')) closePops(); });
 
-function toggleGrid(stageId){ document.getElementById(stageId).classList.toggle('grid-on'); }
+function toggleGrid(stageId){
+  const st=document.getElementById(stageId); if(!st) return;
+  const existing=st.querySelector(':scope > .stage-grid');
+  if(existing){ existing.remove(); return; }
+  const g=document.createElement('div'); g.className='stage-grid';
+  const bg=st.querySelector(':scope > .stage-bgimg');
+  if(bg) bg.after(g); else st.insertBefore(g, st.firstChild);
+}
 function toggleOrient(stageId, btn){
   const st=document.getElementById(stageId);
   st.classList.toggle('landscape');
@@ -1213,23 +1236,56 @@ function toggleOrient(stageId, btn){
   if(btn) btn.textContent = land ? '🖺 Landscape' : '🖹 Portrait';
   scheduleSave();
 }
-function toggleFull(stageId){
-  const st=document.getElementById(stageId);
-  const on=st.classList.toggle('fs-stage');
-  let btn=document.getElementById('fsExitBtn');
-  if(!btn){
-    btn=document.createElement('button'); btn.id='fsExitBtn'; btn.className='fs-exit';
-    btn.textContent='✕ Exit Fullscreen';
-    document.body.appendChild(btn);
+/* Fullscreen keeps the toolbar, the nav tabs, and the Properties Panel all reachable */
+const FS_TABS=[{t:'ex-1',l:'1 Flyer'},{t:'ex-2',l:'2 Cover'},{t:'ex-3',l:'3 Infographic'},{t:'ex-4',l:'4 Newsletter'},{t:'ex-5',l:'5 Poster'},{t:'report',l:'📋 Report'}];
+function fsBar(){
+  let bar=document.getElementById('fsBar');
+  if(!bar){
+    bar=document.createElement('div'); bar.id='fsBar'; bar.className='fs-bar';
+    bar.innerHTML=`<span class="fs-title">Fullscreen</span><div class="fs-tabs" id="fsTabs"></div>`+
+      `<button class="fs-close" onclick="exitFull()">✕ Exit Fullscreen</button>`;
+    document.body.appendChild(bar);
+    document.getElementById('fsTabs').innerHTML=FS_TABS.map(x=>`<button class="fs-tab" data-fstab="${x.t}" onclick="fsGo('${x.t}')">${x.l}</button>`).join('');
   }
-  btn.classList.toggle('vis', on);
-  btn.onclick=()=>{ st.classList.remove('fs-stage'); btn.classList.remove('vis'); };
+  return bar;
+}
+function fsSyncTabs(){
+  const cur=document.querySelector('.tab.active')?.dataset.tab;
+  document.querySelectorAll('#fsTabs .fs-tab').forEach(b=>b.classList.toggle('active', b.dataset.fstab===cur));
+}
+/* Switch exercise while staying in fullscreen */
+function fsGo(tab){
+  const wasFs=!!document.querySelector('.canvas-wrap.fs-wrap');
+  exitFull(true);
+  switchTab(tab);
+  if(wasFs){
+    const wrap=document.querySelector('#panel-'+tab+' .canvas-wrap[data-stage]');
+    if(wrap){ const st=wrap.querySelector('.design-stage'); if(st) toggleFull(st.id); }
+    else { fsBar().classList.remove('vis'); } // Report tab has no canvas
+  }
+  fsSyncTabs();
+}
+function fsApplyPanelRoom(){
+  const open=document.getElementById('propPanel').classList.contains('open');
+  document.querySelector('.canvas-wrap.fs-wrap')?.classList.toggle('pp-room', open);
+  document.getElementById('fsBar')?.classList.toggle('pp-room', open);
+}
+function toggleFull(stageId){
+  const st=document.getElementById(stageId); if(!st) return;
+  const wrap=st.closest('.canvas-wrap'); if(!wrap) return;
+  if(wrap.classList.contains('fs-wrap')){ exitFull(); return; }
+  document.querySelectorAll('.canvas-wrap.fs-wrap').forEach(w=>w.classList.remove('fs-wrap','pp-room'));
+  wrap.classList.add('fs-wrap');
+  fsBar().classList.add('vis');
+  fsSyncTabs(); fsApplyPanelRoom();
+}
+function exitFull(keepBar){
+  document.querySelectorAll('.canvas-wrap.fs-wrap').forEach(w=>w.classList.remove('fs-wrap','pp-room'));
+  if(!keepBar) document.getElementById('fsBar')?.classList.remove('vis');
 }
 // ESC also leaves fullscreen
 document.addEventListener('keydown',e=>{
-  if(e.key!=='Escape') return;
-  const fs=document.querySelector('.design-stage.fs-stage');
-  if(fs){ fs.classList.remove('fs-stage'); document.getElementById('fsExitBtn')?.classList.remove('vis'); }
+  if(e.key==='Escape' && document.querySelector('.canvas-wrap.fs-wrap')) exitFull();
 });
 
 /* ---------- CANVAS BACKGROUND IMAGE ---------- */
