@@ -140,6 +140,9 @@ nav.tabbar{background:#fff;border-bottom:1px solid var(--g200);display:flex;alig
 .stage-scroll{padding:24px;background:repeating-linear-gradient(45deg,#f7f6f2,#f7f6f2 12px,#f3f1eb 12px,#f3f1eb 24px);display:flex;justify-content:center;overflow:auto;min-height:560px}
 .design-stage{position:relative;background:#fff;width:560px;height:760px;box-shadow:0 6px 30px rgba(0,0,0,.14);overflow:hidden;flex:none;transition:width .2s,height .2s}
 .design-stage.landscape{width:760px;height:560px}
+.design-stage.tall{width:560px;height:1100px}
+.design-stage.xtall{width:560px;height:1500px}
+.design-stage.wide{width:1000px;height:700px}
 .stage-grid{position:absolute;inset:0;pointer-events:none;z-index:1;background-image:linear-gradient(rgba(31,56,100,.14) 1px,transparent 1px),linear-gradient(90deg,rgba(31,56,100,.14) 1px,transparent 1px);background-size:20px 20px}
 .cel{position:absolute;cursor:move;user-select:none;min-width:14px;min-height:14px}
 .cel[contenteditable="true"]{user-select:text;outline:2px solid var(--navyL)}
@@ -229,7 +232,9 @@ nav.tabbar{background:#fff;border-bottom:1px solid var(--g200);display:flex;alig
 #ex6Preview li{font-size:14px;margin-bottom:8px;color:var(--navy)}
 .step-block{display:flex;align-items:center;gap:12px}
 .step-circle{width:46px;height:46px;border-radius:50%;background:var(--gold);color:var(--navy2);display:flex;align-items:center;justify-content:center;font-weight:800;font-size:20px;font-family:'Playfair Display',serif;flex:none}
-.step-text{flex:1;font-size:15px;color:#1a1a1a;font-family:inherit}
+.step-block{display:flex;align-items:center;gap:10px}
+.step-circle{flex:none}
+.step-text{flex:1;font-size:15px;color:#1a1a1a;font-family:inherit;min-width:0;overflow-wrap:break-word}
 
 /* ===== REPORT ===== */
 .report-controls{display:flex;gap:12px;flex-wrap:wrap;margin-bottom:20px}
@@ -889,6 +894,20 @@ function buildCanvas(wrap, stageId){
     <div class="tb-sep"></div>
     <button class="tb-btn" onclick="toggleGrid('${stageId}')">Grid</button>
     <button class="tb-btn" onclick="toggleOrient('${stageId}',this)">🖹 Portrait</button>
+    <div class="tb-pop"><button class="tb-btn" onclick="togglePop(this)">⤡ Canvas Size ▾</button>
+      <div class="tb-menu">
+        <div class="frame-list">
+          <button onclick="setStageSize('${stageId}','')">Letter Portrait · 560×760</button>
+          <button onclick="setStageSize('${stageId}','landscape')">Letter Landscape · 760×560</button>
+          <button onclick="setStageSize('${stageId}','tall')">Tall · 560×1100</button>
+          <button onclick="setStageSize('${stageId}','xtall')">Extra Tall · 560×1500</button>
+          <button onclick="setStageSize('${stageId}','wide')">Wide · 1000×700</button>
+        </div>
+        <div style="border-top:1px solid var(--g200);margin:8px 0"></div>
+        <div class="pp-row"><label style="min-width:40px">W</label><input type="number" min="280" max="2000" step="20" value="560" id="${stageId}-cw" onchange="setStageCustom('${stageId}')"></div>
+        <div class="pp-row"><label style="min-width:40px">H</label><input type="number" min="280" max="3000" step="20" value="760" id="${stageId}-ch" onchange="setStageCustom('${stageId}')"></div>
+      </div>
+    </div>
     <button class="tb-btn" onclick="toggleFull('${stageId}')">⛶ Fullscreen</button>
     <div class="tb-sep"></div>
     <button class="tb-btn" onclick="delSelected()">Del Selected</button>
@@ -1228,6 +1247,27 @@ function toggleGrid(stageId){
   const g=document.createElement('div'); g.className='stage-grid';
   const bg=st.querySelector(':scope > .stage-bgimg');
   if(bg) bg.after(g); else st.insertBefore(g, st.firstChild);
+}
+/* ---------- CANVAS SIZE ---------- */
+const STAGE_SIZE_CLASSES=['landscape','tall','xtall','wide'];
+function setStageSize(stageId, cls){
+  const st=document.getElementById(stageId); if(!st) return;
+  STAGE_SIZE_CLASSES.forEach(c=>st.classList.remove(c));
+  st.style.width=''; st.style.height='';
+  if(cls) st.classList.add(cls);
+  const r=st.getBoundingClientRect();
+  const w=document.getElementById(stageId+'-cw'), h=document.getElementById(stageId+'-ch');
+  if(w) w.value=Math.round(r.width); if(h) h.value=Math.round(r.height);
+  closePops(); scheduleSave();
+}
+function setStageCustom(stageId){
+  const st=document.getElementById(stageId); if(!st) return;
+  const w=parseFloat(document.getElementById(stageId+'-cw')?.value)||560;
+  const h=parseFloat(document.getElementById(stageId+'-ch')?.value)||760;
+  STAGE_SIZE_CLASSES.forEach(c=>st.classList.remove(c));
+  st.style.width=Math.max(280,w)+'px';
+  st.style.height=Math.max(280,h)+'px';
+  scheduleSave();
 }
 function toggleOrient(stageId, btn){
   const st=document.getElementById(stageId);
@@ -1613,6 +1653,12 @@ function ppScale(f){ const el=_ppActiveEl; if(!el) return;
   el.style.height=Math.max(14,curSize(el,'h')*f)+'px';
   const tt=getTextTarget(el);
   if(tt){ const fs=parseFloat(getComputedStyle(tt).fontSize)||0; if(fs){ tt.style.fontSize=Math.max(6,fs*f)+'px'; } }
+  // step blocks: keep the numbered circle at its size — only the text scales
+  if(el.dataset.isStepBlock==='1'){
+    el.style.height='';
+    const c=el.querySelector('.step-circle');
+    if(c){ c.style.width=c.style.width||'34px'; c.style.height=c.style.height||'34px'; }
+  }
   syncEffects(el); updateSizeInputs(el); positionFloatHandle(el); scheduleSave();
 }
 function ppRotate(d){ const el=_ppActiveEl; if(!el) return; el.dataset.rotation=(parseFloat(el.dataset.rotation||0)+d); document.getElementById('ppRotateVal').value=el.dataset.rotation; applyTransform(el); scheduleSave(); }
@@ -1757,10 +1803,17 @@ function addInfoBlock(stageId){
   const stepData=steps[existing];
   const num = stepData ? stepData.num : existing+1;
   const txt = stepData ? stepData.text : 'Step description…';
+  // stack compactly and wrap into a second column if it would run past the canvas
+  const stageH=st.getBoundingClientRect().height||760;
+  const rowH=54, topPad=24;
+  const perCol=Math.max(1,Math.floor((stageH-topPad)/rowH));
+  const col=Math.floor(existing/perCol), row=existing%perCol;
   const el=document.createElement('div');
   el.className='cel'; el.dataset.type='text'; el.dataset.isStepBlock='1'; el.dataset.id=newCelId();
-  el.style.left='40px'; el.style.top=(40+existing*70)+'px'; el.style.width='420px';
-  el.innerHTML=`<div class="step-block"><div class="step-circle" contenteditable="false">${num}</div><div class="step-text">${txt}</div></div>`;
+  el.style.left=(28+col*300)+'px';
+  el.style.top=(topPad+row*rowH)+'px';
+  el.style.width='290px';
+  el.innerHTML=`<div class="step-block"><div class="step-circle" contenteditable="false" style="width:34px;height:34px;font-size:15px">${num}</div><div class="step-text" style="font-size:12px;line-height:1.35">${txt}</div></div>`;
   st.appendChild(el); setupCel(el,stageId); selectCel(stageId,el); scheduleSave();
 }
 function recenterStepCircle(el){
@@ -1847,6 +1900,8 @@ function serializeCanvases(){
     total+=els.length;
     canvases[id]={
       bg: stage?stage.style.background:'',
+      sizeClass: stage?STAGE_SIZE_CLASSES.filter(c=>stage.classList.contains(c)).join(' '):'',
+      customW: stage?.style.width||'', customH: stage?.style.height||'',
       bgImg: stage?.querySelector(':scope > .stage-bgimg')?.style.backgroundImage||'',
       bgImgOpacity: stage?.querySelector(':scope > .stage-bgimg')?.style.opacity||'',
       border: stage?stage.style.border:'',
@@ -1999,6 +2054,9 @@ function restoreCanvas(stageId, cdata){
   if(cdata.bgImg){ const L=bgLayer(stageId,true); L.style.backgroundImage=cdata.bgImg; if(cdata.bgImgOpacity) L.style.opacity=cdata.bgImgOpacity; }
   if(cdata.border) st.style.border=cdata.border;
   st.classList.toggle('landscape', !!cdata.landscape);
+  if(cdata.sizeClass){ STAGE_SIZE_CLASSES.forEach(c=>st.classList.remove(c)); cdata.sizeClass.split(' ').filter(Boolean).forEach(c=>st.classList.add(c)); }
+  if(cdata.customW) st.style.width=cdata.customW;
+  if(cdata.customH) st.style.height=cdata.customH;
   (cdata.els||[]).forEach(d=>{
     const el=document.createElement('div');
     el.className='cel '+(d.type==='text'?'cel-txt':d.type==='image'?'cel-img':'cel-shape');
