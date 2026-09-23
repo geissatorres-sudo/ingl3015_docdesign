@@ -865,6 +865,7 @@ function init(){
   refreshTabDimming();
   // identity / cloud restore hooks
   hookSaveTriggers();
+  resetHistory();
 }
 function ensureCanvasesBuilt(){
   document.querySelectorAll('.canvas-wrap[data-stage]').forEach(w=>{
@@ -910,6 +911,7 @@ function buildCanvas(wrap, stageId){
     </div>
     <button class="tb-btn" onclick="toggleFull('${stageId}')">⛶ Fullscreen</button>
     <div class="tb-sep"></div>
+    <button class="tb-btn" onclick="undoCanvas('${stageId}')" title="Undo (Ctrl+Z)">↶ Undo</button>
     <button class="tb-btn" onclick="delSelected()">Del Selected</button>
     <button class="tb-btn danger" onclick="clearAll('${stageId}')">Clear All</button>
     <div class="tb-pop"><button class="tb-btn" onclick="togglePop(this)">Frame ▾</button>
@@ -1064,6 +1066,26 @@ function applyShape(el, shape){
   if(shape==='circle'){ el.style.borderRadius='50%'; el.style.clipPath='none'; el.style.webkitClipPath='none'; }
   else if(SHAPE_RADII[shape]){ el.style.borderRadius=SHAPE_RADII[shape]; }
   else el.style.borderRadius=(shape==='rect')?'0':'0';
+  refreshDynamicClip(el);
+}
+/* Arrows/chevrons: the head keeps its proportions when the shape is stretched (like Word) */
+const DYN_SHAPES={arrowRight:1,arrowLeft:1,arrowUp:1,arrowDown:1,chevron:1,chevBack:1};
+function dynamicClip(shape,W,H){
+  const c=v=>`calc(100% - ${v}px)`;
+  if(shape==='arrowRight'){ const h=Math.round(Math.min(H*0.6,W*0.5)); return `polygon(0 25%, ${c(h)} 25%, ${c(h)} 0, 100% 50%, ${c(h)} 100%, ${c(h)} 75%, 0 75%)`; }
+  if(shape==='arrowLeft'){ const h=Math.round(Math.min(H*0.6,W*0.5)); return `polygon(${h}px 0, ${h}px 25%, 100% 25%, 100% 75%, ${h}px 75%, ${h}px 100%, 0 50%)`; }
+  if(shape==='arrowUp'){ const h=Math.round(Math.min(W*0.6,H*0.5)); return `polygon(50% 0, 100% ${h}px, 75% ${h}px, 75% 100%, 25% 100%, 25% ${h}px, 0 ${h}px)`; }
+  if(shape==='arrowDown'){ const h=Math.round(Math.min(W*0.6,H*0.5)); return `polygon(25% 0, 75% 0, 75% ${c(h)}, 100% ${c(h)}, 50% 100%, 0 ${c(h)}, 25% ${c(h)})`; }
+  if(shape==='chevron'){ const d=Math.round(Math.min(H*0.35,W*0.4)); return `polygon(0 0, ${c(d)} 0, 100% 50%, ${c(d)} 100%, 0 100%, ${d}px 50%)`; }
+  if(shape==='chevBack'){ const d=Math.round(Math.min(H*0.35,W*0.4)); return `polygon(${d}px 0, 100% 0, ${c(d)} 50%, 100% 100%, ${d}px 100%, 0 50%)`; }
+  return null;
+}
+function refreshDynamicClip(el){
+  const s=el?.dataset?.activeShape; if(!s||!DYN_SHAPES[s]) return;
+  const W=parseFloat(el.style.width)||el.offsetWidth, H=parseFloat(el.style.height)||el.offsetHeight;
+  if(!W||!H) return;
+  const cp=dynamicClip(s,W,H); if(!cp) return;
+  el.style.clipPath=cp; el.style.webkitClipPath=cp;
 }
 
 function addLine(stageId){
@@ -1565,7 +1587,7 @@ function ppDepth(kind){ const el=_ppActiveEl; if(!el) return;
    ============================================================ */
 function hasClip(el){ const c=el.style.clipPath; return c && c!=='none' && c!==''; }
 function removeEffects(el){
-  el.style.boxShadow='none'; el.style.filter='';
+  el.style.boxShadow='none'; el.style.filter=''; el.dataset.hasEffect='';
   const st=el.closest('.design-stage'); if(!st) return;
   st.querySelectorAll(`.cel-pp-effect[data-for="${el.dataset.id}"],.cel-depth-shadow[data-for="${el.dataset.id}"]`).forEach(n=>n.remove());
 }
@@ -1585,10 +1607,12 @@ function makeEffectDiv(el, shadowSpec, color, kind){
   st.insertBefore(eff, el);
   el._effDiv=eff; el._effBlur=blur; el._effDx=dx; el._effDy=dy;
   el.dataset.hasEffect=kind||'1';
+  el.dataset.effColor=color;
   syncEffects(el);
   eff.style.filter=`blur(${blur}px)`;
 }
 function syncEffects(el){
+  refreshDynamicClip(el);
   const st=el.closest('.design-stage'); if(!st) return;
   st.querySelectorAll(`.cel-pp-effect[data-for="${el.dataset.id}"],.cel-depth-shadow[data-for="${el.dataset.id}"]`).forEach(eff=>{
     const dx=el._effDx||0, dy=el._effDy||0;
@@ -1894,7 +1918,12 @@ function gatherReflections(){
 }
 function serializeCanvases(){
   const canvases={}; let total=0;
-  STAGES.forEach(id=>{
+  STAGES.forEach(id=>{ const c=serializeStage(id); canvases[id]=c; total+=c.els.length; });
+  return {canvases,total};
+}
+function serializeStage(sid){
+  const canvases={}; let total=0;
+  [sid].forEach(id=>{
     const stage=document.getElementById(id);
     const els=stage?Array.from(stage.querySelectorAll('.cel')):[];
     total+=els.length;
@@ -1933,12 +1962,13 @@ function serializeCanvases(){
           fit:el.dataset.fit||'', photoFill:el.dataset.photoFill||'', photoFit:el.dataset.photoFit||'',
           pbx:el.dataset.pbx||'', pby:el.dataset.pby||'', photoAR:el.dataset.photoAR||'',
           backgroundImage:el.style.backgroundImage||'', backgroundSize:el.style.backgroundSize||'', backgroundPosition:el.style.backgroundPosition||'',
+          hasEffect:el.dataset.hasEffect||'', effColor:el.dataset.effColor||'',
           ...(el.dataset.type==='image'&&el.querySelector('img')?{imgSrc:el.querySelector('img').src}:{})
         };
       })
     };
   });
-  return {canvases,total};
+  return canvases[sid];
 }
 
 const compressImg=(dataUrl,maxKB)=>new Promise(resolve=>{
@@ -2043,20 +2073,22 @@ function restoreData(data){
   if(data.order) for(const k in data.order){ const i=document.querySelector(`[data-order-for="${k}"]`); if(i) i.value=data.order[k]; }
   if(data.coverUpload){ const z=document.getElementById('coverUZone'); if(z){ z.classList.add('has-img'); z.innerHTML=`<img src="${data.coverUpload}">`; z.dataset.img=data.coverUpload; } }
   if(data.flyerRef){ const z=document.getElementById('flyerRefZone'); if(z){ z.classList.add('has-img'); z.innerHTML=`<img src="${data.flyerRef}" style="max-width:100%;border-radius:6px;display:block">`; z.dataset.img=data.flyerRef; } }
-  setTimeout(()=>{ if(data.canvases) STAGES.forEach(id=>restoreCanvas(id, data.canvases[id])); console.log('[LOAD] restore complete'); toast('Work restored'); }, 500);
+  setTimeout(()=>{ if(data.canvases) STAGES.forEach(id=>restoreCanvas(id, data.canvases[id])); resetHistory(); console.log('[LOAD] restore complete'); toast('Work restored'); }, 500);
 }
 
 function restoreCanvas(stageId, cdata){
   const st=document.getElementById(stageId); if(!st||!cdata) return;
   st.querySelectorAll('.cel,.cel-pp-effect,.cel-depth-shadow').forEach(n=>n.remove());
   if(stageId==='nlStage') st.dataset.preloaded='1'; // avoid double preload
-  if(cdata.bg) st.style.background=cdata.bg;
-  if(cdata.bgImg){ const L=bgLayer(stageId,true); L.style.backgroundImage=cdata.bgImg; if(cdata.bgImgOpacity) L.style.opacity=cdata.bgImgOpacity; }
-  if(cdata.border) st.style.border=cdata.border;
-  st.classList.toggle('landscape', !!cdata.landscape);
-  if(cdata.sizeClass){ STAGE_SIZE_CLASSES.forEach(c=>st.classList.remove(c)); cdata.sizeClass.split(' ').filter(Boolean).forEach(c=>st.classList.add(c)); }
-  if(cdata.customW) st.style.width=cdata.customW;
-  if(cdata.customH) st.style.height=cdata.customH;
+  st.style.background=cdata.bg||'';
+  if(cdata.bgImg){ const L=bgLayer(stageId,true); L.style.backgroundImage=cdata.bgImg; L.style.opacity=cdata.bgImgOpacity||''; }
+  else bgLayer(stageId,false)?.remove();
+  st.style.border=cdata.border||'';
+  STAGE_SIZE_CLASSES.forEach(c=>st.classList.remove(c));
+  if(cdata.sizeClass) cdata.sizeClass.split(' ').filter(Boolean).forEach(c=>st.classList.add(c));
+  else st.classList.toggle('landscape', !!cdata.landscape);
+  st.style.width=cdata.customW||'';
+  st.style.height=cdata.customH||'';
   (cdata.els||[]).forEach(d=>{
     const el=document.createElement('div');
     el.className='cel '+(d.type==='text'?'cel-txt':d.type==='image'?'cel-img':'cel-shape');
@@ -2085,14 +2117,117 @@ function restoreCanvas(stageId, cdata){
     if(d.type==='shape'||d.type==='image'){ if(!el.querySelector('.res-handle')) addResizeHandle(el); }
     st.appendChild(el); setupCel(el, stageId);
     if(d.rotation||d.flipH||d.flipV) applyTransform(el);
+    if(d.hasEffect && hasClip(el)) makeEffectDiv(el,'',d.effColor||'rgba(0,0,0,.4)',d.hasEffect);
   });
+}
+
+/* ============================================================
+   UNDO (per canvas) — snapshots each canvas after every change
+   ============================================================ */
+var _hist={}, _histTimer=null, _histMute=false;
+function snapStage(id){ try{ return document.getElementById(id) ? JSON.stringify(serializeStage(id)) : null; }catch(e){ return null; } }
+function resetHistory(){ STAGES.forEach(id=>{ const s=snapStage(id); _hist[id]= s?[s]:[]; }); }
+function recordHistory(){
+  if(_histMute) return;
+  STAGES.forEach(id=>{
+    const s=snapStage(id); if(!s) return;
+    const h=_hist[id]||(_hist[id]=[]);
+    if(h[h.length-1]!==s){ h.push(s); if(h.length>30) h.shift(); }
+  });
+}
+function queueHistory(){ clearTimeout(_histTimer); _histTimer=setTimeout(recordHistory,350); }
+function undoCanvas(stageId){
+  clearTimeout(_histTimer); recordHistory();
+  const h=_hist[stageId];
+  if(!h||h.length<2){ toast('Nothing to undo'); return; }
+  h.pop();
+  _histMute=true;
+  try{ restoreCanvas(stageId, JSON.parse(h[h.length-1])); }finally{ _histMute=false; }
+  selectedCel=null; _ppActiveEl=null; dimPanelHeader(); hideFloatHandles();
+  scheduleSave();
+}
+document.addEventListener('keydown',e=>{
+  if(!(e.ctrlKey||e.metaKey) || e.shiftKey || (e.key||'').toLowerCase()!=='z') return;
+  const a=document.activeElement;
+  if(a && (a.isContentEditable || /INPUT|TEXTAREA|SELECT/.test(a.tagName))) return;
+  const st=document.querySelector('.tab-panel.active .design-stage'); if(!st) return;
+  e.preventDefault(); undoCanvas(st.id);
+});
+
+/* ============================================================
+   REPORT FIDELITY — rasterize clip-path shapes & blurred effects
+   (the screenshot library can't draw clip-path or CSS blur)
+   ============================================================ */
+function evalLen(tok, dim){
+  tok=(tok||'0').trim();
+  if(tok.startsWith('calc(')) tok=tok.slice(5,-1);
+  let total=0, sign=1;
+  tok.replace(/\s+([+-])\s+/g,' $1 ').split(/\s+/).forEach(t=>{
+    if(t==='+'){sign=1;return;} if(t==='-'){sign=-1;return;}
+    const n=parseFloat(t); if(isNaN(n)) return;
+    total+=sign*(t.endsWith('%')?n/100*dim:n); sign=1;
+  });
+  return total;
+}
+function polyPoints(cp,W,H){
+  const m=/^polygon\((.*)\)$/i.exec((cp||'').trim()); if(!m) return null;
+  const parts=[]; let depth=0, cur='';
+  for(const ch of m[1]){ if(ch==='(')depth++; if(ch===')')depth--; if(ch===','&&depth===0){parts.push(cur);cur='';} else cur+=ch; }
+  if(cur.trim()) parts.push(cur);
+  return parts.map(p=>{
+    const toks=[]; let d=0,c='';
+    for(const ch of p.trim()){ if(ch==='(')d++; if(ch===')')d--; if(/\s/.test(ch)&&d===0){ if(c){toks.push(c);c='';} } else c+=ch; }
+    if(c) toks.push(c);
+    return [evalLen(toks[0],W), evalLen(toks[1],H)];
+  });
+}
+function tracePoly(ctx,pts,s,ox,oy){
+  ctx.beginPath();
+  pts.forEach((p,i)=>{ const x=(p[0]+ox)*s, y=(p[1]+oy)*s; i?ctx.lineTo(x,y):ctx.moveTo(x,y); });
+  ctx.closePath();
+}
+async function rasterClipped(el, scale){
+  const W=el.offsetWidth, H=el.offsetHeight; if(!W||!H) return null;
+  const pts=polyPoints(el.style.clipPath,W,H); if(!pts) return null;
+  const st=el.closest('.design-stage'); const sr=st.getBoundingClientRect(); const br=el.getBoundingClientRect();
+  const ux=sr.left+st.clientLeft+el.offsetLeft, uy=sr.top+st.clientTop+el.offsetTop;
+  const id=el.dataset.id;
+  const raw=await html2canvas(el,{scale,backgroundColor:null,useCORS:true,logging:false,
+    x:ux-br.left, y:uy-br.top, width:W, height:H,
+    onclone:cd=>{
+      const c=cd.querySelector(`.cel[data-id="${id}"]`); if(!c) return;
+      c.style.clipPath='none'; c.style.webkitClipPath='none'; c.style.transform='none';
+      c.style.opacity='1'; c.style.boxShadow='none'; c.style.filter='none'; c.classList.remove('sel');
+      cd.querySelectorAll('.float-rh').forEach(h=>h.remove());
+    }});
+  const out=document.createElement('canvas'); out.width=raw.width; out.height=raw.height;
+  const ctx=out.getContext('2d');
+  tracePoly(ctx,pts,raw.width/W,0,0); ctx.clip();
+  if(el.style.filter && el.style.filter!=='none') ctx.filter=el.style.filter;
+  ctx.drawImage(raw,0,0);
+  return out.toDataURL('image/png');
+}
+function rasterEffect(eff, scale){
+  const inner=eff.firstElementChild; if(!inner) return null;
+  const W=eff.offsetWidth, H=eff.offsetHeight; if(!W||!H) return null;
+  const blur=parseFloat(((eff.style.filter||'').match(/blur\(([\d.]+)px\)/)||[])[1]||0);
+  const pad=Math.ceil(blur*3);
+  const pts=polyPoints(inner.style.clipPath,W,H);
+  const c=document.createElement('canvas');
+  c.width=Math.ceil((W+2*pad)*scale); c.height=Math.ceil((H+2*pad)*scale);
+  const ctx=c.getContext('2d');
+  if(blur) ctx.filter=`blur(${blur*scale}px)`;
+  ctx.fillStyle=getComputedStyle(inner).backgroundColor;
+  if(pts) tracePoly(ctx,pts,scale,pad,pad); else { ctx.beginPath(); ctx.rect(pad*scale,pad*scale,W*scale,H*scale); }
+  ctx.fill();
+  return {src:c.toDataURL('image/png'), pad};
 }
 
 /* ============================================================
    SAVE TRIGGERS
    ============================================================ */
 let _saveTimer;
-function scheduleSave(){ setBadge('','Unsaved…'); clearTimeout(_saveTimer); _saveTimer=setTimeout(()=>cloudSave(false),3000); }
+function scheduleSave(){ queueHistory(); setBadge('','Unsaved…'); clearTimeout(_saveTimer); _saveTimer=setTimeout(()=>cloudSave(false),3000); }
 function hookSaveTriggers(){
   // auto every 60s
   setInterval(()=>{ if(studentKey()) cloudSave(false); }, 60000);
@@ -2172,8 +2307,32 @@ async function generateReport(){
     if(!imgSrc){
       const stage=document.getElementById(EX_STAGE[i]);
       try{
+        // pre-render shaped elements + blurred effects so the report matches the canvas exactly
+        const rasters={}, effRasters=[];
+        for(const el of stage.querySelectorAll('.cel')){
+          if(hasClip(el)){ try{ const s=await rasterClipped(el,1.3); if(s) rasters[el.dataset.id]=s; }catch(e){ console.warn('shape raster',e); } }
+        }
+        stage.querySelectorAll('.cel-pp-effect').forEach((eff,k)=>{ try{ effRasters[k]=rasterEffect(eff,1.3); }catch(e){ console.warn('effect raster',e); } });
         const cvs=await html2canvas(stage,{scale:1.3,backgroundColor:'#ffffff',useCORS:true,
-          onclone:(cd)=>{ cd.querySelectorAll('.tab-panel').forEach(p=>p.classList.remove('active')); cd.getElementById('panel-ex-'+i)?.classList.add('active'); cd.querySelectorAll('.res-handle,.cel.sel').forEach(h=>{h.classList?.remove('sel'); if(h.classList?.contains('res-handle'))h.remove();}); }
+          onclone:(cd)=>{
+            cd.querySelectorAll('.tab-panel').forEach(p=>p.classList.remove('active')); cd.getElementById('panel-ex-'+i)?.classList.add('active');
+            cd.querySelectorAll('.res-handle,.cel.sel').forEach(h=>{h.classList?.remove('sel'); if(h.classList?.contains('res-handle'))h.remove();});
+            const cst=cd.getElementById(EX_STAGE[i]); if(!cst) return;
+            cst.querySelectorAll('.float-rh').forEach(h=>h.remove());
+            cst.querySelectorAll('.cel').forEach(c=>{
+              const src=rasters[c.dataset.id]; if(!src) return;
+              c.style.clipPath='none'; c.style.webkitClipPath='none'; c.style.background='none'; c.style.backgroundImage='none';
+              c.style.border='none'; c.style.boxShadow='none'; c.style.filter='none'; c.style.padding='0';
+              c.innerHTML=`<img src="${src}" style="position:absolute;left:0;top:0;width:100%;height:100%;display:block">`;
+            });
+            cst.querySelectorAll('.cel-pp-effect').forEach((e,k)=>{
+              const r=effRasters[k]; if(!r) return;
+              e.style.filter='none';
+              e.style.left=(parseFloat(e.style.left)-r.pad)+'px'; e.style.top=(parseFloat(e.style.top)-r.pad)+'px';
+              e.style.width=(parseFloat(e.style.width)+2*r.pad)+'px'; e.style.height=(parseFloat(e.style.height)+2*r.pad)+'px';
+              e.innerHTML=`<img src="${r.src}" style="width:100%;height:100%;display:block">`;
+            });
+          }
         });
         imgSrc=cvs.toDataURL('image/png');
       }catch(err){ console.error('html2canvas',err); }
