@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+d<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
@@ -175,6 +175,18 @@ nav.tabbar{background:#fff;border-bottom:1px solid var(--g200);display:flex;alig
 .fs-exit{position:fixed;top:16px;right:16px;z-index:9600;background:var(--navy);color:#fff;font-size:13px;font-weight:700;padding:10px 18px;border-radius:8px;box-shadow:0 4px 18px rgba(0,0,0,.3);display:none}
 .fs-exit:hover{background:var(--gold);color:var(--navy2)}
 .fs-exit.vis{display:block}
+.bg-bar{display:none;align-items:center;gap:10px;flex-wrap:wrap;padding:8px 12px;background:var(--cream);border-bottom:1px solid var(--g200);font-size:12px;color:var(--navy)}
+.bg-bar.vis{display:flex}
+.bg-bar-label{font-weight:700}
+.bg-bar label{font-size:12px;color:var(--g600)}
+.bg-bar input[type=range]{width:160px;accent-color:var(--gold)}
+.bg-bar-val{font-family:'DM Mono',monospace;font-weight:500;min-width:34px}
+.bg-bar-quick{display:flex;gap:4px}
+.bg-bar-quick button,.bg-bar-rm{font-size:11px;font-weight:600;padding:5px 9px;border-radius:5px;background:#fff;border:1px solid var(--g200);color:var(--navy)}
+.bg-bar-quick button:hover{border-color:var(--gold)}
+.bg-bar-rm{margin-left:auto;color:var(--red)}
+.bg-bar-rm:hover{background:var(--red);color:#fff;border-color:var(--red)}
+.fs-wrap>.bg-bar{flex:none}
 .stage-bgimg{position:absolute;inset:0;background-size:cover;background-position:center;pointer-events:none;z-index:0}
 
 /* ===== PROPERTIES PANEL ===== */
@@ -929,10 +941,21 @@ function buildCanvas(wrap, stageId){
         <div style="border-top:1px solid var(--g200);margin:10px 0 8px"></div>
         <div style="font-size:10px;letter-spacing:1px;color:var(--g400);margin-bottom:6px;font-family:'DM Mono',monospace">BACKGROUND IMAGE</div>
         <button class="pp-mini" style="width:100%;margin-bottom:8px" onclick="pickBgImage('${stageId}')">⬆ Upload Background Photo</button>
-        <div class="pp-row"><label style="min-width:52px">Opacity</label><input type="range" min="0" max="100" value="100" oninput="setBgOpacity('${stageId}',this.value)"></div>
         <button class="pp-mini danger" style="width:100%" onclick="removeBgImage('${stageId}')">Remove Background Photo</button>
       </div>
     </div>
+  </div>
+  <div class="bg-bar" id="${stageId}-bgbar">
+    <span class="bg-bar-label">🖼 Background photo</span>
+    <label for="${stageId}-bgt">Transparency</label>
+    <input type="range" id="${stageId}-bgt" min="0" max="95" value="0" oninput="setBgTransparency('${stageId}',this.value)">
+    <span class="bg-bar-val" id="${stageId}-bgv">0%</span>
+    <div class="bg-bar-quick">
+      <button onclick="setBgTransparency('${stageId}',30)">30%</button>
+      <button onclick="setBgTransparency('${stageId}',60)">60%</button>
+      <button onclick="setBgTransparency('${stageId}',85)">85%</button>
+    </div>
+    <button class="bg-bar-rm" onclick="removeBgImage('${stageId}')">Remove</button>
   </div>
   <div class="stage-scroll">
     <div class="design-stage" id="${stageId}"></div>
@@ -1362,13 +1385,30 @@ function pickBgImage(stageId){
   inp.onchange=e=>{
     const f=e.target.files[0]; if(!f) return;
     const rd=new FileReader();
-    rd.onload=ev=>{ const L=bgLayer(stageId,true); L.style.backgroundImage=`url("${ev.target.result}")`; closePops(); scheduleSave(); toast('Background photo added — use the Opacity slider to fade it'); };
+    rd.onload=ev=>{ const L=bgLayer(stageId,true); L.style.backgroundImage=`url("${ev.target.result}")`; L.style.opacity='1'; closePops(); updateBgBar(stageId); scheduleSave(); toast('Background photo added — use the Transparency slider above the canvas to fade it'); };
     rd.readAsDataURL(f);
   };
   inp.click();
 }
-function setBgOpacity(stageId, v){ const L=bgLayer(stageId,false); if(!L){ toast('Upload a background photo first',true); return; } L.style.opacity=v/100; scheduleSave(); }
-function removeBgImage(stageId){ bgLayer(stageId,false)?.remove(); closePops(); scheduleSave(); }
+function setBgOpacity(stageId, v){ setBgTransparency(stageId, 100-v); }
+/* Transparency: 0% = photo fully visible, 95% = barely visible */
+function setBgTransparency(stageId, t){
+  const L=bgLayer(stageId,false); if(!L){ toast('Upload a background photo first',true); return; }
+  t=Math.max(0,Math.min(95,parseFloat(t)||0));
+  L.style.opacity=(1-t/100).toFixed(2);
+  updateBgBar(stageId); scheduleSave();
+}
+function updateBgBar(stageId){
+  const bar=document.getElementById(stageId+'-bgbar'); if(!bar) return;
+  const L=bgLayer(stageId,false);
+  bar.classList.toggle('vis', !!L);
+  if(!L) return;
+  const op=L.style.opacity===''?1:parseFloat(L.style.opacity);
+  const t=Math.round((1-op)*100);
+  const r=document.getElementById(stageId+'-bgt'); if(r) r.value=t;
+  const v=document.getElementById(stageId+'-bgv'); if(v) v.textContent=t+'%';
+}
+function removeBgImage(stageId){ bgLayer(stageId,false)?.remove(); updateBgBar(stageId); closePops(); scheduleSave(); }
 function delSelected(){ if(_ppActiveEl){ removeEffects(_ppActiveEl); _ppActiveEl.remove(); selectedCel=null; _ppActiveEl=null; dimPanelHeader(); scheduleSave(); } }
 function clearAll(stageId){
   if(!confirm('⚠️ Are you sure you want to clear everything?')) return;
@@ -1508,7 +1548,10 @@ function loadFromFile(){
 /* ---------- SHAPE GRID + DEPTH ---------- */
 function ppPickShape(s){ const el=_ppActiveEl; if(!el) return;
   if(el.dataset.type!=='shape' && el.dataset.type!=='image') return;
-  applyShape(el,s); syncEffects(el); scheduleSave();
+  applyShape(el,s);
+  // uploaded photos fill the new outline instead of stretching
+  if(el.dataset.type==='image' && s!=='rect') el.dataset.fit='cover';
+  syncEffects(el); scheduleSave();
 }
 /* Fill the selected shape with a photo (keeps its clip-path silhouette) */
 function ppFillPhoto(){
@@ -1519,18 +1562,15 @@ function ppFillPhoto(){
     const rd=new FileReader();
     rd.onload=ev=>{
       el.style.backgroundImage=`url("${ev.target.result}")`;
-      el.style.backgroundSize='contain';
+      // photo fills the whole shape and follows its outline as it is resized
+      el.style.backgroundSize='cover';
       el.style.backgroundPosition='center';
       el.style.backgroundRepeat='no-repeat';
       el.dataset.photoFill='1';
-      el.dataset.photoFit='contain';
-      // remember the photo's natural proportions and match the shape to them
+      el.dataset.photoFit='cover';
+      el.dataset.pbx=50; el.dataset.pby=50;
       const probe=new Image();
-      probe.onload=()=>{
-        el.dataset.photoAR=(probe.width/probe.height)||1;
-        fitShapeToPhoto(el);
-        positionFloatHandle(el); updateSizeInputs(el); scheduleSave();
-      };
+      probe.onload=()=>{ el.dataset.photoAR=(probe.width/probe.height)||1; scheduleSave(); };
       probe.src=ev.target.result;
       scheduleSave();
       toast('Photo added — the shape now matches the photo\u2019s proportions');
@@ -1621,6 +1661,9 @@ function syncEffects(el){
     eff.style.width=(parseFloat(el.style.width)||el.offsetWidth)+'px';
     eff.style.height=(parseFloat(el.style.height)||el.offsetHeight)+'px';
     const inner=eff.firstChild; if(inner){ inner.style.clipPath=el.style.clipPath; inner.style.webkitClipPath=el.style.clipPath; inner.style.borderRadius=el.style.borderRadius||0; }
+    // shadow follows the shape's rotation and flips
+    eff.style.transform=el.style.transform||'';
+    eff.style.transformOrigin='50% 50%';
   });
 }
 function ppEffect(kind){ const el=_ppActiveEl; if(!el) return;
@@ -1665,6 +1708,7 @@ function applyTransform(el){
   const rot=parseFloat(el.dataset.rotation||0);
   const fh=el.dataset.flipH==='1'?-1:1, fv=el.dataset.flipV==='1'?-1:1;
   el.style.transform=`rotate(${rot}deg) scale(${fh},${fv})`;
+  syncEffects(el);
 }
 function ppOpacity(v){ const el=_ppActiveEl; if(!el) return; el.style.opacity=v/100; scheduleSave(); }
 /* ----- SIZE controls (work for every shape, clipped or not) ----- */
@@ -2083,6 +2127,7 @@ function restoreCanvas(stageId, cdata){
   st.style.background=cdata.bg||'';
   if(cdata.bgImg){ const L=bgLayer(stageId,true); L.style.backgroundImage=cdata.bgImg; L.style.opacity=cdata.bgImgOpacity||''; }
   else bgLayer(stageId,false)?.remove();
+  updateBgBar(stageId);
   st.style.border=cdata.border||'';
   STAGE_SIZE_CLASSES.forEach(c=>st.classList.remove(c));
   if(cdata.sizeClass) cdata.sizeClass.split(' ').filter(Boolean).forEach(c=>st.classList.add(c));
