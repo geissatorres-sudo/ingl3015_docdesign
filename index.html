@@ -1,4 +1,4 @@
-d<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
@@ -8,6 +8,7 @@ d<!DOCTYPE html>
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,600;0,700;0,800;1,500&family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,700;1,9..40,400&family=DM+Mono:wght@400;500&family=Bebas+Neue&family=Oswald:wght@400;600&family=Anton&family=Archivo+Black&family=Pacifico&family=Lobster&family=Caveat:wght@600&family=Dancing+Script:wght@600&family=Righteous&family=Abril+Fatface&family=Bungee&family=Permanent+Marker&family=Press+Start+2P&family=Special+Elite&family=Roboto+Condensed:wght@400;700&family=Fjalla+One&family=Merriweather:wght@400;700&family=Lora:wght@400;600&family=Source+Code+Pro&family=Space+Mono&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <style>
 :root{
   --navy:#1F3864; --navy2:#142649; --navyL:#2a4d8f;
@@ -156,6 +157,13 @@ nav.tabbar{background:#fff;border-bottom:1px solid var(--g200);display:flex;alig
 .res-handle{display:none!important}/* legacy — replaced by float-rh */
 .float-rh{position:absolute;width:18px;height:18px;background:#fff;border:2.5px solid var(--gold);border-radius:50%;z-index:500;cursor:nwse-resize;display:none;box-shadow:0 2px 8px rgba(31,56,100,.3);pointer-events:all}
 .float-rh.vis{display:block}
+.float-rh-box{position:absolute;display:none;pointer-events:none;z-index:500;outline:1.5px dashed rgba(201,168,76,.9)}
+.float-rh-box.vis{display:block}
+.float-rh-box .float-rh{display:block;width:14px;height:14px;border-width:2px}
+.float-rh[data-dir="nw"],.float-rh[data-dir="se"]{cursor:nwse-resize}
+.float-rh[data-dir="ne"],.float-rh[data-dir="sw"]{cursor:nesw-resize}
+.float-rh[data-dir="n"],.float-rh[data-dir="s"]{cursor:ns-resize}
+.float-rh[data-dir="e"],.float-rh[data-dir="w"]{cursor:ew-resize}
 .cel-pp-effect,.cel-depth-shadow{position:absolute;pointer-events:none}
 /* Fullscreen = focus mode: whole canvas area (toolbar + stage) fills the screen, Properties Panel stays usable */
 .fs-wrap{position:fixed!important;inset:0;z-index:9000;background:#fff;border-radius:0!important;box-shadow:none!important;display:flex!important;flex-direction:column;padding-top:46px;transition:right .15s}
@@ -528,7 +536,7 @@ nav.tabbar{background:#fff;border-bottom:1px solid var(--g200);display:flex;alig
   </div>
   <div class="report-controls">
     <button class="btn btn-primary" onclick="generateReport()" id="genReportBtn">📸 Generate Report</button>
-    <button class="btn btn-navy" onclick="printReport()">🖨 Print / Save as PDF</button>
+    <button class="btn btn-navy" onclick="printReport()">⬇ Download PDF</button>
     <a class="btn btn-ghost" id="emailBtn" href="#" onclick="return submitEmail()">✉ Email to Instructor</a>
     <button class="btn btn-ghost" onclick="cloudSave(true)">☁ Save to Cloud Now</button>
     <button class="btn btn-ghost" onclick="cloudLoad(true)">⬇ Load My Saved Work</button>
@@ -999,40 +1007,57 @@ function setFrame(stageId, i){
 /* ============================================================
    FLOATING RESIZE HANDLE (stage-level, never clipped by clip-path)
    ============================================================ */
+/* 8 handles (corners + sides) like Word; Shift on a corner keeps proportions */
+const RH_POS={nw:[0,0],n:[50,0],ne:[100,0],e:[100,50],se:[100,100],s:[50,100],sw:[0,100],w:[0,50]};
 function setupFloatHandle(stage){
-  const h=document.createElement('div'); h.className='float-rh'; h.id=stage.id+'-rh';
-  h.addEventListener('pointerdown',e=>{
-    if(!_ppActiveEl) return;
-    e.preventDefault(); e.stopPropagation();
-    const el=_ppActiveEl;
-    const sw=parseFloat(el.style.width)||el.offsetWidth;
-    const sh=parseFloat(el.style.height)||el.offsetHeight;
-    const sx=e.clientX, sy=e.clientY;
-    function onMove(me){
-      el.style.width=Math.max(20,sw+me.clientX-sx)+'px';
-      el.style.height=Math.max(20,sh+me.clientY-sy)+'px';
-      syncEffects(el); positionFloatHandle(el);
-      updateSizeInputs(el);
-    }
-    function onUp(){ document.removeEventListener('pointermove',onMove); document.removeEventListener('pointerup',onUp); scheduleSave(); }
-    document.addEventListener('pointermove',onMove); document.addEventListener('pointerup',onUp);
+  const box=document.createElement('div'); box.className='float-rh-box'; box.id=stage.id+'-rh';
+  Object.keys(RH_POS).forEach(dir=>{
+    const h=document.createElement('div'); h.className='float-rh'; h.dataset.dir=dir;
+    h.style.left=`calc(${RH_POS[dir][0]}% - 7px)`; h.style.top=`calc(${RH_POS[dir][1]}% - 7px)`;
+    h.addEventListener('pointerdown',e=>startResize(e,dir));
+    box.appendChild(h);
   });
-  stage.appendChild(h);
+  stage.appendChild(box);
+}
+function startResize(e,dir){
+  if(!_ppActiveEl) return;
+  e.preventDefault(); e.stopPropagation();
+  const el=_ppActiveEl, MIN=16;
+  const sw=parseFloat(el.style.width)||el.offsetWidth;
+  const sh=parseFloat(el.style.height)||el.offsetHeight;
+  const sl=parseFloat(el.style.left)||0, stp=parseFloat(el.style.top)||0;
+  const sx=e.clientX, sy=e.clientY, ar=sw/sh;
+  const isStep=el.dataset.isStepBlock==='1';
+  function onMove(me){
+    const dx=me.clientX-sx, dy=me.clientY-sy;
+    let w=sw, h=sh, l=sl, t=stp;
+    if(dir.includes('e')) w=sw+dx;
+    if(dir.includes('w')) w=sw-dx;
+    if(dir.includes('s')) h=sh+dy;
+    if(dir.includes('n')) h=sh-dy;
+    if(me.shiftKey && dir.length===2){ if(Math.abs(dx)>Math.abs(dy)) h=w/ar; else w=h*ar; }
+    w=Math.max(MIN,w); h=Math.max(MIN,h);
+    if(dir.includes('w')) l=sl+(sw-w);
+    if(dir.includes('n')) t=stp+(sh-h);
+    el.style.width=w+'px'; el.style.left=l+'px';
+    if(!isStep){ el.style.height=h+'px'; el.style.top=t+'px'; }
+    syncEffects(el); positionFloatHandle(el); updateSizeInputs(el);
+  }
+  function onUp(){ document.removeEventListener('pointermove',onMove); document.removeEventListener('pointerup',onUp); scheduleSave(); }
+  document.addEventListener('pointermove',onMove); document.addEventListener('pointerup',onUp);
 }
 function positionFloatHandle(el){
   if(!el) return;
   const st=el.closest('.design-stage'); if(!st) return;
-  const h=document.getElementById(st.id+'-rh'); if(!h) return;
-  const l=parseFloat(el.style.left)||0;
-  const t=parseFloat(el.style.top)||0;
-  const w=parseFloat(el.style.width)||el.offsetWidth;
-  const ht=parseFloat(el.style.height)||el.offsetHeight;
-  h.style.left=(l+w-9)+'px';
-  h.style.top=(t+ht-9)+'px';
-  h.classList.add('vis');
+  const box=document.getElementById(st.id+'-rh'); if(!box) return;
+  box.style.left=(parseFloat(el.style.left)||0)+'px';
+  box.style.top=(parseFloat(el.style.top)||0)+'px';
+  box.style.width=(parseFloat(el.style.width)||el.offsetWidth)+'px';
+  box.style.height=(el.dataset.isStepBlock==='1'?el.offsetHeight:(parseFloat(el.style.height)||el.offsetHeight))+'px';
+  box.classList.add('vis');
 }
 function hideFloatHandles(){
-  document.querySelectorAll('.float-rh.vis').forEach(h=>h.classList.remove('vis'));
+  document.querySelectorAll('.float-rh-box.vis').forEach(h=>h.classList.remove('vis'));
 }
 
 /* ============================================================
@@ -1167,8 +1192,12 @@ function setupCel(el, stageId){
     const sl=parseFloat(el.style.left)||0;
     const st2=parseFloat(el.style.top)||0;
     function onMove(me){
-      el.style.left=Math.max(0,sl+me.clientX-sx)+'px';
-      el.style.top =Math.max(0,st2+me.clientY-sy)+'px';
+      // move freely; keep at least 20px on the canvas so it can't get lost
+      const st=el.closest('.design-stage');
+      const SW=st?st.clientWidth:2000, SH=st?st.clientHeight:3000;
+      const W=el.offsetWidth, H=el.offsetHeight;
+      el.style.left=Math.min(SW-20,Math.max(20-W,sl+me.clientX-sx))+'px';
+      el.style.top =Math.min(SH-20,Math.max(20-H,st2+me.clientY-sy))+'px';
       syncEffects(el);
       positionFloatHandle(el);
     }
@@ -1195,6 +1224,7 @@ function setupCel(el, stageId){
     el.focus();
   });
 
+  el.addEventListener('input', scheduleSave);
   el.addEventListener('blur', function(){
     el.contentEditable='false';
     el.style.cursor='move';
@@ -2034,11 +2064,11 @@ const compressImg=(dataUrl,maxKB)=>new Promise(resolve=>{
   img.src=dataUrl;
 });
 
-let _saving=false;
+let _saving=false, _savePending=false;
 async function cloudSave(manual){
   const key=studentKey();
   if(!key){ if(manual) toast('Enter your name or Student ID first',true); return; }
-  if(_saving) return; _saving=true;
+  if(_saving){ _savePending=true; return; } _saving=true;
   setBadge('saving','Saving…');
   try{
     const {canvases,total}=serializeCanvases();
@@ -2072,19 +2102,35 @@ async function cloudSave(manual){
       setBadge('saved', `Local · ${total} els`);
       _saving=false; return;
     }
+    try{ localStorage.setItem('ingl3015_'+key, payload); }catch(e){ console.warn('local mirror failed',e); }
     const url=`${_FB_BASE}/${encodeURIComponent(key)}?key=${_FB_API_KEY}`;
     const res=await fetch(url,{method:'PATCH',headers:{'Content-Type':'application/json'},
       body:JSON.stringify({fields:{data:{stringValue:payload}}})});
     if(!res.ok) throw new Error(`HTTP ${res.status}: ${await res.text()}`);
     console.log(`[SERIALIZE] serialized ${total} els · Firestore response: ${res.status} ✓`);
-    localStorage.setItem('ingl3015_'+key, payload); // local mirror
     setBadge('saved', `Saved · ${total} els`);
   }catch(err){
     console.error('[SAVE] error',err); setBadge('error','Save failed');
     if(manual) toast('Save failed: '+err.message,true);
   }
   _saving=false;
+  if(_savePending){ _savePending=false; setTimeout(()=>cloudSave(false),400); }
 }
+/* Quick local backup when the tab is hidden/closed (Safari often skips other events) */
+function quickLocalSave(){
+  const key=studentKey(); if(!key) return;
+  try{
+    const {canvases}=serializeCanvases();
+    localStorage.setItem('ingl3015_'+key, JSON.stringify({
+      studentName:document.getElementById('iName').value||'', studentSection:document.getElementById('iSec').value||'',
+      studentId:document.getElementById('iId').value||'', selectedEx:[...selectedExercises], reflections:gatherReflections(),
+      flyerRef:document.getElementById('flyerRefZone')?.dataset.img||'',
+      order:(()=>{const o={};document.querySelectorAll('[data-order-for]').forEach(i=>o[i.dataset.orderFor]=i.value);return o;})(),
+      canvases, ts:new Date().toISOString()}));
+  }catch(e){ console.warn('quick local save failed',e); }
+}
+document.addEventListener('visibilitychange',()=>{ if(document.visibilityState==='hidden'){ quickLocalSave(); cloudSave(false); } });
+window.addEventListener('pagehide',quickLocalSave);
 
 async function cloudLoad(promptUser){
   const key=studentKey(); if(!key){ if(promptUser) toast('Enter your Student ID first',true); return; }
@@ -2243,7 +2289,7 @@ async function rasterClipped(el, scale){
       const c=cd.querySelector(`.cel[data-id="${id}"]`); if(!c) return;
       c.style.clipPath='none'; c.style.webkitClipPath='none'; c.style.transform='none';
       c.style.opacity='1'; c.style.boxShadow='none'; c.style.filter='none'; c.classList.remove('sel');
-      cd.querySelectorAll('.float-rh').forEach(h=>h.remove());
+      cd.querySelectorAll('.float-rh-box,.float-rh').forEach(h=>h.remove());
     }});
   const out=document.createElement('canvas'); out.width=raw.width; out.height=raw.height;
   const ctx=out.getContext('2d');
@@ -2340,6 +2386,10 @@ async function generateReport(){
 
   const wasActive=document.querySelector('.tab-panel.active');
   const wasTab=document.querySelector('.tab.active')?.dataset.tab;
+  // finish any text being edited and wait for fonts so the capture matches the canvas
+  document.activeElement?.blur?.();
+  hideFloatHandles();
+  try{ await document.fonts.ready; }catch(e){}
 
   for(const i of exToReport){
     document.querySelectorAll('.tab-panel').forEach(p=>{ p.classList.remove('active'); });
@@ -2363,7 +2413,16 @@ async function generateReport(){
             cd.querySelectorAll('.tab-panel').forEach(p=>p.classList.remove('active')); cd.getElementById('panel-ex-'+i)?.classList.add('active');
             cd.querySelectorAll('.res-handle,.cel.sel').forEach(h=>{h.classList?.remove('sel'); if(h.classList?.contains('res-handle'))h.remove();});
             const cst=cd.getElementById(EX_STAGE[i]); if(!cst) return;
-            cst.querySelectorAll('.float-rh').forEach(h=>h.remove());
+            cst.querySelectorAll('.float-rh-box,.float-rh').forEach(h=>h.remove());
+            // gradient-filled text can't be drawn by the screenshot tool: use its main color instead of a box
+            cst.querySelectorAll('*').forEach(n=>{
+              const s=n.style; if(!s) return;
+              if(s.backgroundClip==='text'||s.webkitBackgroundClip==='text'){
+                const m=(s.backgroundImage||s.background||'').match(/#[0-9a-f]{3,8}|rgba?\([^)]*\)/i);
+                const col=m?m[0]:'#1a1a1a';
+                s.background='none'; s.backgroundImage='none'; s.color=col; s.webkitTextFillColor=col;
+              }
+            });
             cst.querySelectorAll('.cel').forEach(c=>{
               const src=rasters[c.dataset.id]; if(!src) return;
               c.style.clipPath='none'; c.style.webkitClipPath='none'; c.style.background='none'; c.style.backgroundImage='none';
@@ -2404,12 +2463,39 @@ async function generateReport(){
 function esc(s){ return (s||'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
 
 async function printReport(){
-  // The report tab stays open; the print window is separate — students close it to return here.
-  const wrap=document.getElementById('printableReport');
-  if(!wrap){ alert('Generate the report first.'); return; }
+  // Builds a real PDF file (same in Chrome, Safari, Edge, Firefox) — no print dialog, no browser color changes.
+  const hasPdfLib=!!(window.jspdf&&window.jspdf.jsPDF);
+  // fallback only: open the window right away so Safari doesn't block it
+  let w=hasPdfLib?null:window.open('','_blank');
+  let wrap=document.getElementById('printableReport');
+  if(!wrap){ await generateReport(); wrap=document.getElementById('printableReport'); }
+  if(!wrap){ w?.close(); return; }
   const pages=[...wrap.querySelectorAll('.r-page')];
-  if(!pages.length){ alert('Generate the report first.'); return; }
+  if(!pages.length){ w?.close(); alert('Generate the report first.'); return; }
   toast('Preparing your PDF…');
+  try{ await document.fonts.ready; }catch(e){}
+  if(hasPdfLib){
+    try{
+      const {jsPDF}=window.jspdf;
+      const pdf=new jsPDF({unit:'pt',format:'letter',orientation:'portrait'});
+      const PW=612, PH=792;
+      let n=0;
+      for(const p of pages){
+        const cvs=await html2canvas(p,{scale:2,backgroundColor:'#ffffff',useCORS:true,logging:false});
+        const px=cvs.getContext('2d').getImageData(2,2,1,1).data; // page's own edge color (navy cover stays navy)
+        if(n++) pdf.addPage('letter','portrait');
+        pdf.setFillColor(px[0],px[1],px[2]); pdf.rect(0,0,PW,PH,'F');
+        const s=Math.min(PW/cvs.width, PH/cvs.height);
+        const iw=cvs.width*s, ih=cvs.height*s;
+        pdf.addImage(cvs.toDataURL('image/jpeg',0.95),'JPEG',(PW-iw)/2,(PH-ih)/2,iw,ih);
+      }
+      const who=(document.getElementById('iName').value||document.getElementById('iId').value||'student').trim().replace(/[^a-zA-Z0-9À-ſ_-]+/g,'_');
+      pdf.save(`INGL3015_Report_${who}.pdf`);
+      toast('PDF downloaded — attach it to your email');
+      return;
+    }catch(err){ console.error('PDF build failed, using print fallback',err); w=window.open('','_blank'); }
+  }
+  if(!w){ alert('Please allow pop-ups for this site and try again.'); return; }
   // Capture each report page as a full-color image (prints reliably — no lost backgrounds)
   const imgs=[];
   for(const p of pages){
@@ -2418,8 +2504,7 @@ async function printReport(){
       imgs.push(cvs.toDataURL('image/png'));
     }catch(err){ console.error('report page capture failed',err); }
   }
-  if(!imgs.length){ alert('Could not prepare the PDF. Please regenerate the report and try again.'); return; }
-  const w=window.open('','_blank');
+  if(!imgs.length){ w.close(); alert('Could not prepare the PDF. Please regenerate the report and try again.'); return; }
   w.document.write(`<!DOCTYPE html><html><head><meta charset="utf-8"><title>INGL 3015 Report</title>
     <style>
       @page{ size:letter; margin:0; }
